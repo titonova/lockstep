@@ -1,0 +1,35 @@
+# Node
+node_modules/
+/dist
+/build
+/.turbo
+
+# Vite / dev
+.env.local
+.env.*.local
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Local env
+.env
+
+# Public assets built by build
+/public/pwa-*.png
+
+# Mac
+*.DS_Store
