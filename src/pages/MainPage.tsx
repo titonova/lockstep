@@ -6,7 +6,7 @@ import { TimerDisplay } from '../components/TimerDisplay';
 import { PasswordModal } from '../components/PasswordModal';
 import { QuoteDisplay } from '../components/QuoteDisplay';
 import { Button } from '../components/Button';
-import { formatHours } from '../utils/time';
+import { formatHours, hoursToMs, minutesToMs, formatTime } from '../utils/time';
 import { playStartSound, playCompletionSound, playExtensionSound, playPauseSound } from '../utils/audio';
 import { triggerConfetti, triggerSessionCompleteConfetti } from '../components/Confetti';
 
@@ -71,6 +71,20 @@ export function MainPage({ onNavigate }: MainPageProps) {
       }, 5000);
     }
   }, [currentSession?.state, createSession]);
+
+  // Update page title with remaining time
+  useEffect(() => {
+    if (isRunning && currentTask) {
+      const baseMs = hoursToMs(currentTask.durationHours);
+      const extensionMs = currentTask.extensions.reduce((sum, ext) => sum + minutesToMs(ext.minutes), 0);
+      const totalMs = baseMs + extensionMs;
+      const remainingMs = Math.max(0, totalMs - elapsedMs);
+      const timeString = formatTime(remainingMs);
+      document.title = `${timeString} - Lockstep`;
+    } else {
+      document.title = 'Lockstep - Deep Work Timer';
+    }
+  }, [isRunning, currentTask, elapsedMs]);
 
   const handleStartSession = () => {
     if (settings.soundEnabled) {
@@ -202,7 +216,7 @@ export function MainPage({ onNavigate }: MainPageProps) {
         </div>
 
         {/* Quote */}
-        <QuoteDisplay quotes={settings.quotes} enabled={settings.quotesEnabled && isIdle} />
+        <QuoteDisplay quotes={settings.quotes} enabled={settings.quotesEnabled} />
 
         {/* Timer (when running) */}
         {(isRunning || isPaused) && currentTask && (

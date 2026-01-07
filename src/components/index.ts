@@ -7,5 +7,6 @@ export { TaskList } from './TaskList';
 export { TimerDisplay } from './TimerDisplay';
 export { PasswordModal } from './PasswordModal';
 export { QuoteDisplay } from './QuoteDisplay';
+export { CurrentDateTime } from './CurrentDateTime';
 export { DailySummaryCard } from './DailySummaryCard';
 export { ConfettiTrigger, triggerConfetti, triggerSessionCompleteConfetti } from './Confetti';

@@ -89,4 +89,7 @@ export interface AppState {
   settings: Settings;
   currentSession: Session | null;
   history: DailySummary[];
+  timerActive: boolean;
+  elapsedMs: number;
+  lastTickTime: number | null;
 }

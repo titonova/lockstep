@@ -31,7 +31,10 @@ export function loadState(): AppState {
       return {
         settings: { ...getDefaultSettings(), ...parsed.settings },
         currentSession: parsed.currentSession || null,
-        history: parsed.history || []
+        history: parsed.history || [],
+        timerActive: parsed.timerActive || false,
+        elapsedMs: parsed.elapsedMs || 0,
+        lastTickTime: parsed.lastTickTime || null
       };
     }
   } catch (error) {
@@ -40,7 +43,10 @@ export function loadState(): AppState {
   return {
     settings: getDefaultSettings(),
     currentSession: null,
-    history: []
+    history: [],
+    timerActive: false,
+    elapsedMs: 0,
+    lastTickTime: null
   };
 }
 
@@ -73,7 +79,10 @@ export function importData(json: string): AppState | null {
       return {
         settings: { ...getDefaultSettings(), ...data.settings },
         currentSession: data.currentSession || null,
-        history: data.history || []
+        history: data.history || [],
+        timerActive: data.timerActive || false,
+        elapsedMs: data.elapsedMs || 0,
+        lastTickTime: data.lastTickTime || null
       };
     }
   } catch (error) {

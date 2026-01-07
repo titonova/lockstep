@@ -28,6 +28,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   const [addingQuote, setAddingQuote] = useState(false);
   const [newQuoteText, setNewQuoteText] = useState('');
   const [newQuoteAuthor, setNewQuoteAuthor] = useState('');
+  const [uploadError, setUploadError] = useState('');
 
   const handlePasswordChange = async () => {
     setPasswordError('');
@@ -69,6 +70,41 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
       setNewQuoteAuthor('');
       setAddingQuote(false);
     }
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadError('');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(e.target?.result as string);
+        if (Array.isArray(json)) {
+          let addedCount = 0;
+          json.forEach((item: any) => {
+            if (item.text && typeof item.text === 'string') {
+              addQuote({
+                text: item.text.trim(),
+                author: item.author && typeof item.author === 'string' ? item.author.trim() : undefined
+              });
+              addedCount++;
+            }
+          });
+          if (addedCount === 0) {
+            setUploadError('No valid quotes found in the file');
+          }
+        } else {
+          setUploadError('File must contain an array of quotes');
+        }
+      } catch (error) {
+        setUploadError('Invalid JSON file');
+      }
+    };
+    reader.readAsText(file);
+    // Clear the input
+    event.target.value = '';
   };
 
   const handleResetApp = () => {
@@ -202,9 +238,25 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
                   </div>
                 </div>
               ) : (
-                <Button variant="secondary" onClick={() => setAddingQuote(true)} className="w-full">
-                  Add Quote
-                </Button>
+                <div className="space-y-2">
+                  <Button variant="secondary" onClick={() => setAddingQuote(true)} className="w-full">
+                    Add Quote
+                  </Button>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={handleFileUpload}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <Button variant="secondary" className="w-full">
+                      Upload Quotes JSON
+                    </Button>
+                  </div>
+                  {uploadError && (
+                    <p className="text-red-400 text-sm">{uploadError}</p>
+                  )}
+                </div>
               )}
             </>
           )}

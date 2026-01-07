@@ -75,9 +75,6 @@ export const useStore = create<StoreState>()(
   subscribeWithSelector((set, get) => ({
     // Initial state
     ...initialState,
-    timerActive: false,
-    elapsedMs: 0,
-    lastTickTime: null,
 
     // Settings actions
     setPassword: async (password: string) => {
@@ -383,27 +380,39 @@ export const useStore = create<StoreState>()(
 
     // Timer actions
     startTimer: () => {
-      set(state => ({
-        ...state,
-        timerActive: true,
-        lastTickTime: Date.now()
-      }));
+      set(state => {
+        const newState = {
+          ...state,
+          timerActive: true,
+          lastTickTime: Date.now()
+        };
+        saveState(newState);
+        return newState;
+      });
     },
 
     pauseTimer: () => {
-      set(state => ({
-        ...state,
-        timerActive: false,
-        lastTickTime: null
-      }));
+      set(state => {
+        const newState = {
+          ...state,
+          timerActive: false,
+          lastTickTime: null
+        };
+        saveState(newState);
+        return newState;
+      });
     },
 
     resumeTimer: () => {
-      set(state => ({
-        ...state,
-        timerActive: true,
-        lastTickTime: Date.now()
-      }));
+      set(state => {
+        const newState = {
+          ...state,
+          timerActive: true,
+          lastTickTime: Date.now()
+        };
+        saveState(newState);
+        return newState;
+      });
     },
 
     tick: () => {
@@ -428,11 +437,20 @@ export const useStore = create<StoreState>()(
           return get(); // Return fresh state after completion
         }
 
-        return {
+        const newState = {
           ...state,
           elapsedMs: newElapsed,
           lastTickTime: now
         };
+
+        // Save state only when elapsed seconds change (throttle saves)
+        const currentSeconds = Math.floor(state.elapsedMs / 1000);
+        const newSeconds = Math.floor(newElapsed / 1000);
+        if (currentSeconds !== newSeconds) {
+          saveState(newState);
+        }
+
+        return newState;
       });
     },
 
@@ -536,7 +554,10 @@ export const useStore = create<StoreState>()(
       return JSON.stringify({
         settings: state.settings,
         currentSession: state.currentSession,
-        history: state.history
+        history: state.history,
+        timerActive: state.timerActive,
+        elapsedMs: state.elapsedMs,
+        lastTickTime: state.lastTickTime
       }, null, 2);
     },
 
@@ -549,7 +570,10 @@ export const useStore = create<StoreState>()(
               ...state,
               settings: { ...getDefaultSettings(), ...data.settings },
               currentSession: data.currentSession || null,
-              history: data.history || []
+              history: data.history || [],
+              timerActive: data.timerActive || false,
+              elapsedMs: data.elapsedMs || 0,
+              lastTickTime: data.lastTickTime || null
             };
             saveState(newState);
             return newState;

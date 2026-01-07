@@ -1,0 +1,5 @@
+- ~~Urgent: Ensure the time elapsed etc is also saved in local storage so that on refresh it continues properly~~ ✅
+- ~~Have motivational quotes still be present while clock is ticking~~ ✅
+- ~~Show time left real time in page title~~ ✅
+- ~~On click, motivational quote should fade into another~~ ✅
+- ~~Ability to upload multiple quotes as json~~ ✅ 

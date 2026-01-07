@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useStore } from './store';
 import { ProceduralBackground } from './components/ProceduralBackground';
+import { CurrentDateTime } from './components/CurrentDateTime';
 import { Onboarding } from './pages/Onboarding';
 import { MainPage } from './pages/MainPage';
 import { HistoryPage } from './pages/HistoryPage';
@@ -36,6 +37,7 @@ function App() {
     <div className="min-h-screen">
       <ProceduralBackground intensity={settings.visualMode} />
       {renderPage()}
+      <CurrentDateTime />
     </div>
   );
 }
