@@ -34,6 +34,13 @@ export function MainPage({ onNavigate }: MainPageProps) {
     verifyPassword
   } = useStore();
 
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
   const [showPreFlight, setShowPreFlight] = useState(false);
   const [passwordModal, setPasswordModal] = useState<{
     open: boolean;
@@ -71,6 +78,8 @@ export function MainPage({ onNavigate }: MainPageProps) {
       }, 5000);
     }
   }, [currentSession?.state, createSession]);
+
+  
 
   const handleStartSession = () => {
     if (settings.soundEnabled) {
@@ -129,9 +138,6 @@ export function MainPage({ onNavigate }: MainPageProps) {
   const isPaused = currentSession?.state === 'paused';
   const isIdle = currentSession?.state === 'idle' || !currentSession;
 
-  const totalHours = tasks.reduce((sum, t) => sum + t.durationHours, 0);
-  const canStart = tasks.length > 0 && tasks.every(t => t.name && t.durationHours > 0);
-
   // Update page title with remaining time
   useEffect(() => {
     if (isRunning && currentTask) {
@@ -145,6 +151,9 @@ export function MainPage({ onNavigate }: MainPageProps) {
       document.title = 'Lockstep - Deep Work Timer';
     }
   }, [isRunning, currentTask, elapsedMs]);
+
+  const totalHours = tasks.reduce((sum, t) => sum + t.durationHours, 0);
+  const canStart = tasks.length > 0 && tasks.every(t => t.name && t.durationHours > 0);
 
   // Session complete view
   if (sessionComplete) {
@@ -220,7 +229,7 @@ export function MainPage({ onNavigate }: MainPageProps) {
 
         {/* Timer (when running) */}
         {(isRunning || isPaused) && currentTask && (
-          <GlassCard className="space-y-4">
+          <GlassCard className="space-y-4 relative">
             {isPaused ? (
               <div className="text-center space-y-6">
                 <div className="text-6xl">⏸️</div>
@@ -243,6 +252,18 @@ export function MainPage({ onNavigate }: MainPageProps) {
                 onPasswordRequest={handlePasswordRequest}
               />
             )}
+
+            {/* In-card quote and time for visibility while timer is active */}
+            { !isPaused && settings.quotesEnabled && (
+              <div className="mt-3">
+                <QuoteDisplay quotes={settings.quotes} enabled={true} />
+              </div>
+            )}
+
+            <div className="absolute top-3 right-3 text-white/40 text-xs font-mono">
+              <div>{currentTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+              <div>{currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</div>
+            </div>
           </GlassCard>
         )}
 

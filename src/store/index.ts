@@ -14,7 +14,8 @@ import {
   loadState,
   saveState,
   getDefaultSettings,
-  updateDailySummary
+  updateDailySummary,
+  importData as importAppState
 } from '../utils/storage';
 import {
   generateId,
@@ -562,28 +563,24 @@ export const useStore = create<StoreState>()(
     },
 
     importData: (json: string) => {
-      try {
-        const data = JSON.parse(json);
-        if (data.settings && typeof data.settings === 'object') {
-          set(state => {
-            const newState = {
-              ...state,
-              settings: { ...getDefaultSettings(), ...data.settings },
-              currentSession: data.currentSession || null,
-              history: data.history || [],
-              timerActive: data.timerActive || false,
-              elapsedMs: data.elapsedMs || 0,
-              lastTickTime: data.lastTickTime || null
-            };
-            saveState(newState);
-            return newState;
-          });
-          return true;
-        }
-      } catch (error) {
-        console.error('Failed to import data:', error);
-      }
-      return false;
+      const data = importAppState(json);
+      if (!data) return false;
+
+      set(state => {
+        const newState = {
+          ...state,
+          settings: { ...getDefaultSettings(), ...data.settings },
+          currentSession: data.currentSession || null,
+          history: data.history || [],
+          timerActive: data.timerActive || false,
+          elapsedMs: data.elapsedMs || 0,
+          lastTickTime: data.lastTickTime || null
+        };
+        saveState(newState);
+        return newState;
+      });
+
+      return true;
     },
 
     resetApp: () => {

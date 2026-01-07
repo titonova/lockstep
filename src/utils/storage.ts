@@ -28,13 +28,30 @@ export function loadState(): AppState {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
+      // Compute sensible timer defaults when missing from storage
+      const session = parsed.currentSession || null;
+      const timerActive = parsed.timerActive ?? (session?.state === 'running');
+      let elapsedMs = parsed.elapsedMs ?? 0;
+      const lastTickTime = parsed.lastTickTime ?? (timerActive ? Date.now() : null);
+
+      // If session is running and current task has a startedAt timestamp, compute elapsed from that
+      if (timerActive && session) {
+        const idx = session.currentTaskIndex ?? 0;
+        const currentTask = session.tasks?.[idx];
+        if (currentTask && currentTask.startedAt) {
+          const computed = Date.now() - currentTask.startedAt;
+          // Only use computed if it's non-negative
+          if (computed >= 0) elapsedMs = computed;
+        }
+      }
+
       return {
         settings: { ...getDefaultSettings(), ...parsed.settings },
-        currentSession: parsed.currentSession || null,
+        currentSession: session,
         history: parsed.history || [],
-        timerActive: parsed.timerActive || false,
-        elapsedMs: parsed.elapsedMs || 0,
-        lastTickTime: parsed.lastTickTime || null
+        timerActive,
+        elapsedMs,
+        lastTickTime
       };
     }
   } catch (error) {
@@ -76,13 +93,27 @@ export function importData(json: string): AppState | null {
     const data = JSON.parse(json);
     // Validate basic structure
     if (data.settings && typeof data.settings === 'object') {
+      const session = data.currentSession || null;
+      const timerActive = data.timerActive ?? (session?.state === 'running');
+      let elapsedMs = data.elapsedMs ?? 0;
+      const lastTickTime = data.lastTickTime ?? (timerActive ? Date.now() : null);
+
+      if (timerActive && session) {
+        const idx = session.currentTaskIndex ?? 0;
+        const currentTask = session.tasks?.[idx];
+        if (currentTask && currentTask.startedAt) {
+          const computed = Date.now() - currentTask.startedAt;
+          if (computed >= 0) elapsedMs = computed;
+        }
+      }
+
       return {
         settings: { ...getDefaultSettings(), ...data.settings },
-        currentSession: data.currentSession || null,
+        currentSession: session,
         history: data.history || [],
-        timerActive: data.timerActive || false,
-        elapsedMs: data.elapsedMs || 0,
-        lastTickTime: data.lastTickTime || null
+        timerActive,
+        elapsedMs,
+        lastTickTime
       };
     }
   } catch (error) {
