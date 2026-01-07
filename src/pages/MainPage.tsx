@@ -72,20 +72,6 @@ export function MainPage({ onNavigate }: MainPageProps) {
     }
   }, [currentSession?.state, createSession]);
 
-  // Update page title with remaining time
-  useEffect(() => {
-    if (isRunning && currentTask) {
-      const baseMs = hoursToMs(currentTask.durationHours);
-      const extensionMs = currentTask.extensions.reduce((sum, ext) => sum + minutesToMs(ext.minutes), 0);
-      const totalMs = baseMs + extensionMs;
-      const remainingMs = Math.max(0, totalMs - elapsedMs);
-      const timeString = formatTime(remainingMs);
-      document.title = `${timeString} - Lockstep`;
-    } else {
-      document.title = 'Lockstep - Deep Work Timer';
-    }
-  }, [isRunning, currentTask, elapsedMs]);
-
   const handleStartSession = () => {
     if (settings.soundEnabled) {
       playStartSound(settings.soundVolume);
@@ -145,6 +131,20 @@ export function MainPage({ onNavigate }: MainPageProps) {
 
   const totalHours = tasks.reduce((sum, t) => sum + t.durationHours, 0);
   const canStart = tasks.length > 0 && tasks.every(t => t.name && t.durationHours > 0);
+
+  // Update page title with remaining time
+  useEffect(() => {
+    if (isRunning && currentTask) {
+      const baseMs = hoursToMs(currentTask.durationHours);
+      const extensionMs = currentTask.extensions.reduce((sum, ext) => sum + minutesToMs(ext.minutes), 0);
+      const totalMs = baseMs + extensionMs;
+      const remainingMs = Math.max(0, totalMs - elapsedMs);
+      const timeString = formatTime(remainingMs);
+      document.title = `${timeString} - Lockstep`;
+    } else {
+      document.title = 'Lockstep - Deep Work Timer';
+    }
+  }, [isRunning, currentTask, elapsedMs]);
 
   // Session complete view
   if (sessionComplete) {
