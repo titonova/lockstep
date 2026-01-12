@@ -123,3 +123,11 @@ export function shouldShowExtensions(
   const threshold = getExtensionThreshold(baseThreshold, extensionCount);
   return remainingPercent <= threshold;
 }
+
+/**
+ * Calculate total duration for a task including extensions
+ */
+export function getTaskTotalDuration(task: { durationHours: number; extensions: { minutes: number }[] }): number {
+  return hoursToMs(task.durationHours) + 
+    task.extensions.reduce((sum, ext) => sum + minutesToMs(ext.minutes), 0);
+}

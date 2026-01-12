@@ -22,6 +22,12 @@ import {
   hoursToMs,
   minutesToMs
 } from '../utils/time';
+import { 
+  calculateScheduledTimes, 
+  getEffectiveStartTime, 
+  getTaskStatusFromSchedule,
+  getElapsedForTask
+} from '../utils/scheduling';
 import { hashPassword, verifyPassword } from '../utils/crypto';
 
 interface StoreState extends AppState {
@@ -281,13 +287,16 @@ export const useStore = create<StoreState>()(
           startedAt: idx === 0 ? now : undefined
         }));
 
-        const newSession: Session = {
+        let newSession: Session = {
           ...state.currentSession,
           tasks,
           state: 'running',
           startedAt: now,
           currentTaskIndex: 0
         };
+
+        // Calculate scheduled times for all tasks
+        newSession = calculateScheduledTimes(newSession, now, 0);
 
         const newState = {
           ...state,
@@ -421,31 +430,86 @@ export const useStore = create<StoreState>()(
         if (!state.currentSession || state.currentSession.state !== 'running') return state;
 
         const now = Date.now();
-        const delta = now - state.lastTickTime;
-        const newElapsed = state.elapsedMs + delta;
+        let session = { ...state.currentSession };
 
-        // Check if current task time is up
-        const currentTask = state.currentSession.tasks[state.currentSession.currentTaskIndex];
+        // Check which tasks should be complete based on scheduled times
+        const { completedIndices, activeIndex } = getTaskStatusFromSchedule(session, now);
+
+        // Auto-complete overdue tasks
+        if (completedIndices.length > 0) {
+          const tasks = [...session.tasks];
+          completedIndices.forEach(idx => {
+            const task = tasks[idx];
+            if (task.status !== 'completed') {
+              const taskDuration = hoursToMs(task.durationHours) + 
+                task.extensions.reduce((sum, ext) => sum + minutesToMs(ext.minutes), 0);
+              
+              tasks[idx] = {
+                ...task,
+                status: 'completed',
+                completedAt: task.scheduledCompleteAt || now,
+                timeSpentMs: taskDuration,
+                completedEarly: false
+              };
+            }
+          });
+
+          // Update to next active task or complete session
+          if (activeIndex >= tasks.length) {
+            // Session complete
+            session = {
+              ...session,
+              tasks,
+              state: 'completed',
+              completedAt: now,
+              totalActualMs: session.totalActualMs + tasks
+                .filter(t => t.status === 'completed' && t.timeSpentMs)
+                .reduce((sum, t) => sum + (t.timeSpentMs || 0), 0)
+            };
+
+            const newHistory = updateDailySummary(state.history, session);
+            const newState = {
+              ...state,
+              currentSession: null,
+              history: newHistory,
+              timerActive: false,
+              elapsedMs: 0,
+              lastTickTime: null
+            };
+            saveState(newState);
+            return newState;
+          } else {
+            // Move to next task
+            tasks[activeIndex] = {
+              ...tasks[activeIndex],
+              status: 'active',
+              startedAt: tasks[activeIndex].scheduledStartAt || now
+            };
+
+            session = {
+              ...session,
+              tasks,
+              currentTaskIndex: activeIndex
+            };
+          }
+        }
+
+        // Calculate elapsed time for current active task
+        const currentTask = session.tasks[session.currentTaskIndex];
         if (!currentTask) return state;
 
-        const totalTaskMs = hoursToMs(currentTask.durationHours) +
-          currentTask.extensions.reduce((sum, ext) => sum + minutesToMs(ext.minutes), 0);
-
-        if (newElapsed >= totalTaskMs) {
-          // Auto-complete task
-          get().completeCurrentTask(false);
-          return get(); // Return fresh state after completion
-        }
+        const elapsedMs = getElapsedForTask(currentTask, now);
 
         const newState = {
           ...state,
-          elapsedMs: newElapsed,
+          currentSession: session,
+          elapsedMs,
           lastTickTime: now
         };
 
         // Save state only when elapsed seconds change (throttle saves)
         const currentSeconds = Math.floor(state.elapsedMs / 1000);
-        const newSeconds = Math.floor(newElapsed / 1000);
+        const newSeconds = Math.floor(elapsedMs / 1000);
         if (currentSeconds !== newSeconds) {
           saveState(newState);
         }
@@ -474,12 +538,15 @@ export const useStore = create<StoreState>()(
             : t
         );
 
-        // Also update total planned time
-        const newSession: Session = {
+        let newSession: Session = {
           ...state.currentSession,
           tasks,
           totalPlannedMs: state.currentSession.totalPlannedMs + minutesToMs(minutes)
         };
+
+        // Recalculate scheduled times from current task onward
+        const effectiveStartTime = getEffectiveStartTime(newSession);
+        newSession = calculateScheduledTimes(newSession, effectiveStartTime, currentIdx);
 
         const newState = { ...state, currentSession: newSession };
         saveState(newState);
@@ -522,26 +589,31 @@ export const useStore = create<StoreState>()(
           return state;
         }
 
+        const now = Date.now();
         const pauseEvents = [...state.currentSession.pauseEvents];
         if (pauseEvents.length > 0) {
           const lastPause = pauseEvents[pauseEvents.length - 1];
           pauseEvents[pauseEvents.length - 1] = {
             ...lastPause,
-            resumedAt: Date.now()
+            resumedAt: now
           };
         }
 
-        const newSession: Session = {
+        let newSession: Session = {
           ...state.currentSession,
           state: 'running',
           pauseEvents
         };
 
+        // Recalculate scheduled times accounting for pause duration
+        const effectiveStartTime = getEffectiveStartTime(newSession);
+        newSession = calculateScheduledTimes(newSession, effectiveStartTime, newSession.currentTaskIndex);
+
         const newState = {
           ...state,
           currentSession: newSession,
           timerActive: true,
-          lastTickTime: Date.now()
+          lastTickTime: now
         };
         saveState(newState);
         return newState;

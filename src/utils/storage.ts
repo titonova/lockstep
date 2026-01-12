@@ -1,5 +1,6 @@
 import { AppState, DailySummary, Session, Settings } from '../types';
 import { DEFAULT_QUOTES } from '../data/quotes';
+import { calculateScheduledTimes, getEffectiveStartTime } from './scheduling';
 
 const STORAGE_KEY = 'lockstep_data';
 
@@ -28,9 +29,22 @@ export function loadState(): AppState {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
+      let currentSession = parsed.currentSession || null;
+
+      // Backward compatibility: calculate scheduled times if missing and session is active
+      if (currentSession && currentSession.state === 'running') {
+        const hasScheduledTimes = currentSession.tasks.some((t: any) => t.scheduledCompleteAt);
+        
+        if (!hasScheduledTimes) {
+          // Calculate scheduled times for backward compatibility
+          const effectiveStartTime = getEffectiveStartTime(currentSession);
+          currentSession = calculateScheduledTimes(currentSession, effectiveStartTime, currentSession.currentTaskIndex);
+        }
+      }
+
       return {
         settings: { ...getDefaultSettings(), ...parsed.settings },
-        currentSession: parsed.currentSession || null,
+        currentSession,
         history: parsed.history || [],
         timerActive: parsed.timerActive || false,
         elapsedMs: parsed.elapsedMs || 0,

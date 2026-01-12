@@ -17,6 +17,9 @@ export interface Task {
   timeSpentMs?: number; // Actual time spent
   extensions: Extension[]; // Time extensions applied
   completedEarly?: boolean; // Whether completed before time ran out
+  // Scheduled times (absolute timestamps for offline resilience)
+  scheduledStartAt?: number; // When this task is scheduled to start
+  scheduledCompleteAt?: number; // When this task is scheduled to complete
 }
 
 // Time extension record
