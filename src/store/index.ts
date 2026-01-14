@@ -340,29 +340,27 @@ export const useStore = create<StoreState>()(
 
         if (hasMoreTasks) {
           // Activate next task
-          const nextTask = tasks[nextIdx];
           tasks[nextIdx] = {
-            ...nextTask,
+            ...tasks[nextIdx],
             status: 'active',
             startedAt: now
           };
 
-          const newSession: Session = {
+          let newSession: Session = {
             ...state.currentSession,
             tasks,
             currentTaskIndex: nextIdx,
             totalActualMs: state.currentSession.totalActualMs + timeSpentMs
           };
 
-          // Calculate elapsed for next task from its scheduled start
-          const elapsedMs = nextTask.scheduledStartAt 
-            ? Math.max(0, now - nextTask.scheduledStartAt)
-            : 0;
+          // Recalculate scheduled times from current task onward to prevent "frozen" timer
+          // Checks against absolute timestamps instead of relative
+          newSession = calculateScheduledTimes(newSession, now, nextIdx);
 
           const newState = {
             ...state,
             currentSession: newSession,
-            elapsedMs,
+            elapsedMs: 0,
             lastTickTime: now
           };
           saveState(newState);
@@ -551,8 +549,10 @@ export const useStore = create<StoreState>()(
         };
 
         // Recalculate scheduled times from current task onward
-        const effectiveStartTime = getEffectiveStartTime(newSession);
-        newSession = calculateScheduledTimes(newSession, effectiveStartTime, currentIdx);
+        // Use existing scheduled start time to preserve any previous drifts/early completions
+        const currentTask = newSession.tasks[currentIdx];
+        const startTime = currentTask.scheduledStartAt || (Date.now() - state.elapsedMs);
+        newSession = calculateScheduledTimes(newSession, startTime, currentIdx);
 
         const newState = { ...state, currentSession: newSession };
         saveState(newState);
@@ -612,8 +612,14 @@ export const useStore = create<StoreState>()(
         };
 
         // Recalculate scheduled times accounting for pause duration
-        const effectiveStartTime = getEffectiveStartTime(newSession);
-        newSession = calculateScheduledTimes(newSession, effectiveStartTime, newSession.currentTaskIndex);
+        // Shift the schedule of current and future tasks by the pause duration
+        const currentIdx = newSession.currentTaskIndex;
+        const currentTask = newSession.tasks[currentIdx];
+        const lastPause = newSession.pauseEvents[newSession.pauseEvents.length - 1];
+        const pauseDuration = lastPause ? ((lastPause.resumedAt || now) - lastPause.pausedAt) : 0;
+        
+        const newStartAt = (currentTask.scheduledStartAt || now) + pauseDuration;
+        newSession = calculateScheduledTimes(newSession, newStartAt, currentIdx);
 
         const newState = {
           ...state,
