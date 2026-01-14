@@ -340,8 +340,9 @@ export const useStore = create<StoreState>()(
 
         if (hasMoreTasks) {
           // Activate next task
+          const nextTask = tasks[nextIdx];
           tasks[nextIdx] = {
-            ...tasks[nextIdx],
+            ...nextTask,
             status: 'active',
             startedAt: now
           };
@@ -353,10 +354,15 @@ export const useStore = create<StoreState>()(
             totalActualMs: state.currentSession.totalActualMs + timeSpentMs
           };
 
+          // Calculate elapsed for next task from its scheduled start
+          const elapsedMs = nextTask.scheduledStartAt 
+            ? Math.max(0, now - nextTask.scheduledStartAt)
+            : 0;
+
           const newState = {
             ...state,
             currentSession: newSession,
-            elapsedMs: 0,
+            elapsedMs,
             lastTickTime: now
           };
           saveState(newState);
