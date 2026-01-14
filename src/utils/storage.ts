@@ -30,6 +30,9 @@ export function loadState(): AppState {
     if (saved) {
       const parsed = JSON.parse(saved);
       let currentSession = parsed.currentSession || null;
+      let timerActive = parsed.timerActive || false;
+      let elapsedMs = parsed.elapsedMs || 0;
+      let lastTickTime = parsed.lastTickTime || null;
 
       // Backward compatibility: calculate scheduled times if missing and session is active
       if (currentSession && currentSession.state === 'running') {
@@ -40,15 +43,26 @@ export function loadState(): AppState {
           const effectiveStartTime = getEffectiveStartTime(currentSession);
           currentSession = calculateScheduledTimes(currentSession, effectiveStartTime, currentSession.currentTaskIndex);
         }
+
+        // Resume timer state for running sessions
+        const now = Date.now();
+        const currentTask = currentSession.tasks[currentSession.currentTaskIndex];
+        
+        if (currentTask && currentTask.scheduledStartAt) {
+          // Recalculate elapsed time from scheduled start
+          elapsedMs = Math.max(0, now - currentTask.scheduledStartAt);
+          timerActive = true;
+          lastTickTime = now;
+        }
       }
 
       return {
         settings: { ...getDefaultSettings(), ...parsed.settings },
         currentSession,
         history: parsed.history || [],
-        timerActive: parsed.timerActive || false,
-        elapsedMs: parsed.elapsedMs || 0,
-        lastTickTime: parsed.lastTickTime || null
+        timerActive,
+        elapsedMs,
+        lastTickTime
       };
     }
   } catch (error) {
