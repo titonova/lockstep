@@ -60,6 +60,7 @@ interface StoreState extends AppState {
   pauseTimer: () => void;
   resumeTimer: () => void;
   tick: () => void;
+  forceRestartTimer: () => void;
   
   // Extension actions
   addExtension: (minutes: number) => void;
@@ -427,6 +428,46 @@ export const useStore = create<StoreState>()(
       });
     },
 
+    forceRestartTimer: () => {
+      set(state => {
+        if (!state.currentSession || state.currentSession.state !== 'running') {
+          return state;
+        }
+
+        const now = Date.now();
+        const currentIdx = state.currentSession.currentTaskIndex;
+        const tasks = [...state.currentSession.tasks];
+        const currentTask = tasks[currentIdx];
+
+        if (!currentTask || currentTask.status !== 'active') return state;
+
+        // Force reset the scheduled times starting from NOW
+        tasks[currentIdx] = {
+          ...currentTask,
+          startedAt: now,
+          scheduledStartAt: now
+        };
+
+        let newSession: Session = {
+          ...state.currentSession,
+          tasks
+        };
+
+        // Recalculate all scheduled times from current task onward
+        newSession = calculateScheduledTimes(newSession, now, currentIdx);
+
+        const newState = {
+          ...state,
+          currentSession: newSession,
+          timerActive: true,
+          elapsedMs: 0,
+          lastTickTime: now
+        };
+        saveState(newState);
+        return newState;
+      });
+    },
+
     tick: () => {
       set(state => {
         if (!state.timerActive || !state.lastTickTime) return state;
@@ -483,10 +524,12 @@ export const useStore = create<StoreState>()(
             return newState;
           } else {
             // Move to next task
+            const nextTaskStart = tasks[activeIndex].scheduledStartAt || now;
             tasks[activeIndex] = {
               ...tasks[activeIndex],
               status: 'active',
-              startedAt: tasks[activeIndex].scheduledStartAt || now
+              startedAt: nextTaskStart,
+              scheduledStartAt: nextTaskStart // Ensure this is always set
             };
 
             session = {
@@ -494,6 +537,9 @@ export const useStore = create<StoreState>()(
               tasks,
               currentTaskIndex: activeIndex
             };
+
+            // Recalculate scheduled times from this task onward
+            session = calculateScheduledTimes(session, nextTaskStart, activeIndex);
           }
         }
 
@@ -611,13 +657,22 @@ export const useStore = create<StoreState>()(
         };
 
         // Recalculate scheduled times accounting for pause duration
-        // Shift the schedule of current and future tasks by the pause duration
+        // The key insight: we need to shift the start time forward by the pause duration
+        // to account for the time lost during the pause
         const currentIdx = newSession.currentTaskIndex;
         const currentTask = newSession.tasks[currentIdx];
         const lastPause = newSession.pauseEvents[newSession.pauseEvents.length - 1];
         const pauseDuration = lastPause ? ((lastPause.resumedAt || now) - lastPause.pausedAt) : 0;
         
-        const newStartAt = (currentTask.scheduledStartAt || now) + pauseDuration;
+        // If we have a scheduled start time, shift it forward by pause duration
+        // If not, use (now - elapsedMs) as the effective start time so timer continues from where it was
+        let newStartAt: number;
+        if (currentTask.scheduledStartAt) {
+          newStartAt = currentTask.scheduledStartAt + pauseDuration;
+        } else {
+          // Fallback: calculate based on elapsed time before pause
+          newStartAt = now - state.elapsedMs;
+        }
         newSession = calculateScheduledTimes(newSession, newStartAt, currentIdx);
 
         const newState = {

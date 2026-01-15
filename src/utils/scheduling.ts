@@ -95,12 +95,15 @@ export function getTaskStatusFromSchedule(
 
 /**
  * Calculate elapsed time for the current active task based on scheduled start time.
+ * Falls back to startedAt if scheduledStartAt is not available.
  * 
  * @param task - The current active task
  * @param now - Current timestamp
  * @returns Elapsed milliseconds, or 0 if not calculable
  */
 export function getElapsedForTask(task: Task, now: number): number {
-  if (!task.scheduledStartAt) return 0;
-  return Math.max(0, now - task.scheduledStartAt);
+  // Use scheduledStartAt as primary, fall back to startedAt
+  const startTime = task.scheduledStartAt ?? task.startedAt;
+  if (!startTime) return 0;
+  return Math.max(0, now - startTime);
 }
