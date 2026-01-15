@@ -24,7 +24,6 @@ import {
 } from '../utils/time';
 import { 
   calculateScheduledTimes, 
-  getEffectiveStartTime, 
   getTaskStatusFromSchedule,
   getElapsedForTask
 } from '../utils/scheduling';
