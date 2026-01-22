@@ -8,6 +8,7 @@ interface TaskItemProps {
   task: Task;
   index: number;
   isEditable: boolean;
+  isSessionActive?: boolean;
   onUpdate: (id: string, updates: Partial<Pick<Task, 'name' | 'durationHours' | 'notes'>>) => void;
   onRemove: (id: string) => void;
   onDragStart?: (index: number) => void;
@@ -20,6 +21,7 @@ export function TaskItem({
   task,
   index,
   isEditable,
+  isSessionActive = false,
   onUpdate,
   onRemove,
   onDragStart,
@@ -112,7 +114,7 @@ export function TaskItem({
           )}
 
           {/* Remove button */}
-          {isEditable && task.status === 'pending' && (
+          {isEditable && task.status === 'pending' && !isSessionActive && (
             <button
               onClick={() => onRemove(task.id)}
               className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-white/40 hover:text-red-400"

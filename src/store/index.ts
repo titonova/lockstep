@@ -54,6 +54,7 @@ interface StoreState extends AppState {
   createSession: () => void;
   startSession: () => void;
   completeCurrentTask: (early?: boolean) => void;
+  restartSession: (clearTasks: boolean) => void;
   
   // Timer actions
   startTimer: () => void;
@@ -171,11 +172,21 @@ export const useStore = create<StoreState>()(
           totalActualMs: 0
         };
 
-        const newSession: Session = {
+        let newSession: Session = {
           ...session,
           tasks: [...session.tasks, task],
           totalPlannedMs: session.totalPlannedMs + hoursToMs(durationHours)
         };
+
+        // If session is running, calculate scheduled times for the new task
+        if (newSession.state === 'running') {
+          // Re-calculate starting from current task to ensure all subsequent 
+          // tasks (including the new one) are correctly scheduled
+          const now = Date.now();
+          const currentTask = newSession.tasks[newSession.currentTaskIndex];
+          const startTime = currentTask.scheduledStartAt || (now - state.elapsedMs);
+          newSession = calculateScheduledTimes(newSession, startTime, newSession.currentTaskIndex);
+        }
 
         const newState = { ...state, currentSession: newSession };
         saveState(newState);
@@ -388,6 +399,55 @@ export const useStore = create<StoreState>()(
           saveState(newState);
           return newState;
         }
+      });
+    },
+
+    restartSession: (clearTasks: boolean) => {
+      set(state => {
+        if (!state.currentSession) return state;
+
+        const now = Date.now();
+        let tasks: Task[] = [];
+        
+        if (!clearTasks) {
+          tasks = state.currentSession.tasks.map((t, idx) => ({
+            ...t,
+            status: idx === 0 ? 'active' : 'pending',
+            startedAt: idx === 0 ? now : undefined,
+            completedAt: undefined,
+            timeSpentMs: undefined,
+            completedEarly: undefined,
+            extensions: [],
+            // Reset scheduled times too, they will be recalculated
+            scheduledStartAt: undefined,
+            scheduledCompleteAt: undefined
+          }));
+        }
+
+        let newSession: Session = {
+          ...state.currentSession,
+          tasks,
+          state: tasks.length > 0 ? 'running' : 'idle',
+          startedAt: tasks.length > 0 ? now : undefined,
+          currentTaskIndex: 0,
+          pauseEvents: [],
+          totalActualMs: 0,
+          totalPlannedMs: tasks.reduce((sum, t) => sum + hoursToMs(t.durationHours), 0)
+        };
+
+        if (tasks.length > 0) {
+          newSession = calculateScheduledTimes(newSession, now, 0);
+        }
+
+        const newState = {
+          ...state,
+          currentSession: newSession,
+          timerActive: tasks.length > 0,
+          elapsedMs: 0,
+          lastTickTime: tasks.length > 0 ? now : null
+        };
+        saveState(newState);
+        return newState;
       });
     },
 

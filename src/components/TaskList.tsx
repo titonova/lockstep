@@ -86,6 +86,7 @@ export function TaskList({
             task={task}
             index={index}
             isEditable={!isSessionActive || index > currentTaskIndex}
+            isSessionActive={isSessionActive}
             onUpdate={onUpdateTask}
             onRemove={onRemoveTask}
             onDragStart={handleDragStart}
@@ -97,20 +98,19 @@ export function TaskList({
       </div>
 
       {/* Add task form */}
-      {!isSessionActive && (
-        <div className="pt-4 border-t border-white/10">
-          {!isAddingTask ? (
-            <Button 
-              variant="secondary" 
-              className="w-full"
-              onClick={() => setIsAddingTask(true)}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add Task
-            </Button>
-          ) : (
+      <div className="pt-4 border-t border-white/10">
+        {!isAddingTask ? (
+          <Button 
+            variant="secondary" 
+            className="w-full"
+            onClick={() => setIsAddingTask(true)}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            {isSessionActive ? 'Add Task During Session' : 'Add Task'}
+          </Button>
+        ) : (
             <div className="space-y-3 p-4 rounded-xl bg-white/5 border border-white/10">
               <Input
                 value={newTaskName}
@@ -152,7 +152,6 @@ export function TaskList({
             </div>
           )}
         </div>
-      )}
     </div>
   );
 }

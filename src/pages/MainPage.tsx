@@ -32,15 +32,18 @@ export function MainPage({ onNavigate }: MainPageProps) {
     emergencyPause,
     resumeFromPause,
     verifyPassword,
-    forceRestartTimer
+    forceRestartTimer,
+    restartSession
   } = useStore();
 
   const [showPreFlight, setShowPreFlight] = useState(false);
   const [passwordModal, setPasswordModal] = useState<{
     open: boolean;
-    action: 'extend' | 'pause';
+    action: 'extend' | 'pause' | 'restart';
     minutes?: number;
+    clearTasks?: boolean;
   }>({ open: false, action: 'extend' });
+  const [showRestartChoice, setShowRestartChoice] = useState(false);
   const [sessionComplete, setSessionComplete] = useState(false);
 
   // Create session if none exists
@@ -107,6 +110,11 @@ export function MainPage({ onNavigate }: MainPageProps) {
         emergencyPause();
         if (settings.soundEnabled) {
           playPauseSound(settings.soundVolume);
+        }
+      } else if (passwordModal.action === 'restart') {
+        restartSession(passwordModal.clearTasks || false);
+        if (settings.soundEnabled) {
+          playStartSound(settings.soundVolume);
         }
       }
       setPasswordModal({ open: false, action: 'extend' });
@@ -285,6 +293,19 @@ export function MainPage({ onNavigate }: MainPageProps) {
         {/* Emergency pause button (when running) */}
         {isRunning && (
           <div className="fixed bottom-4 right-4 flex gap-2">
+            {/* Restart button */}
+            <button
+              onClick={() => setShowRestartChoice(true)}
+              className="p-3 bg-red-500/20 hover:bg-red-500/30 rounded-full 
+                text-red-300 hover:text-red-200 transition-all border border-red-500/30"
+              title="Restart Session"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+
             {/* Force restart button - visible when timer appears frozen */}
             {elapsedMs === 0 && timerActive && (
               <button
@@ -320,22 +341,70 @@ export function MainPage({ onNavigate }: MainPageProps) {
         title={
           passwordModal.action === 'extend' 
             ? `Add ${passwordModal.minutes} minutes?`
-            : isPaused
-              ? 'Resume Session'
-              : 'Emergency Pause'
+            : passwordModal.action === 'restart'
+              ? 'Restart Session'
+              : isPaused
+                ? 'Resume Session'
+                : 'Emergency Pause'
         }
         description={
-          passwordModal.action === 'extend'
-            ? 'Enter your password to add extra time.'
-            : isPaused
-              ? 'Enter your password to continue.'
-              : 'Enter your password and hold to pause. This will be logged.'
+          passwordModal.action === 'restart'
+            ? 'Enter your password to confirm session restart.'
+            : passwordModal.action === 'extend'
+              ? 'Enter your password to add extra time.'
+              : isPaused
+                ? 'Enter your password to continue.'
+                : 'Enter your password and hold to pause. This will be logged.'
         }
         requireLongPress={passwordModal.action === 'pause' && !isPaused}
         longPressSeconds={settings.longPressSeconds}
         onSubmit={isPaused ? handleResume : handlePasswordSubmit}
         onCancel={() => setPasswordModal({ open: false, action: 'extend' })}
       />
+
+      {/* Restart Choice Modal */}
+      {showRestartChoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowRestartChoice(false)}
+          />
+          <GlassCard className="relative w-full max-w-md space-y-6">
+            <h2 className="text-2xl font-bold text-white text-center">Restart Session?</h2>
+            <p className="text-white/60 text-center">
+              This will reset the timer to 0 and start from the beginning.
+            </p>
+            <div className="space-y-3">
+              <Button 
+                onClick={() => {
+                  setShowRestartChoice(false);
+                  setPasswordModal({ open: true, action: 'restart', clearTasks: false });
+                }}
+                className="w-full"
+              >
+                Restart & Keep Tasks
+              </Button>
+              <Button 
+                variant="ghost"
+                onClick={() => {
+                  setShowRestartChoice(false);
+                  setPasswordModal({ open: true, action: 'restart', clearTasks: true });
+                }}
+                className="w-full text-red-400 hover:text-red-300 hover:bg-red-500/10"
+              >
+                Restart & Clear All Tasks
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={() => setShowRestartChoice(false)}
+                className="w-full"
+              >
+                Cancel
+              </Button>
+            </div>
+          </GlassCard>
+        </div>
+      )}
     </div>
   );
 }
