@@ -54,7 +54,7 @@ interface StoreState extends AppState {
   createSession: () => void;
   startSession: () => void;
   completeCurrentTask: (early?: boolean) => void;
-  restartSession: (clearTasks: boolean) => void;
+  restartSession: (action: 'restart' | 'stop', clearTasks: boolean) => void;
   
   // Timer actions
   startTimer: () => void;
@@ -402,23 +402,24 @@ export const useStore = create<StoreState>()(
       });
     },
 
-    restartSession: (clearTasks: boolean) => {
+    restartSession: (action: 'restart' | 'stop', clearTasks: boolean) => {
       set(state => {
         if (!state.currentSession) return state;
 
         const now = Date.now();
+        const shouldStart = action === 'restart';
         let tasks: Task[] = [];
         
         if (!clearTasks) {
           tasks = state.currentSession.tasks.map((t, idx) => ({
             ...t,
-            status: idx === 0 ? 'active' : 'pending',
-            startedAt: idx === 0 ? now : undefined,
+            status: (shouldStart && idx === 0) ? 'active' : 'pending',
+            startedAt: (shouldStart && idx === 0) ? now : undefined,
             completedAt: undefined,
             timeSpentMs: undefined,
             completedEarly: undefined,
             extensions: [],
-            // Reset scheduled times too, they will be recalculated
+            // Reset scheduled times too, they will be recalculated if starting
             scheduledStartAt: undefined,
             scheduledCompleteAt: undefined
           }));
@@ -427,24 +428,24 @@ export const useStore = create<StoreState>()(
         let newSession: Session = {
           ...state.currentSession,
           tasks,
-          state: tasks.length > 0 ? 'running' : 'idle',
-          startedAt: tasks.length > 0 ? now : undefined,
+          state: (shouldStart && tasks.length > 0) ? 'running' : 'idle',
+          startedAt: (shouldStart && tasks.length > 0) ? now : undefined,
           currentTaskIndex: 0,
           pauseEvents: [],
           totalActualMs: 0,
           totalPlannedMs: tasks.reduce((sum, t) => sum + hoursToMs(t.durationHours), 0)
         };
 
-        if (tasks.length > 0) {
+        if (shouldStart && tasks.length > 0) {
           newSession = calculateScheduledTimes(newSession, now, 0);
         }
 
         const newState = {
           ...state,
           currentSession: newSession,
-          timerActive: tasks.length > 0,
+          timerActive: (shouldStart && tasks.length > 0),
           elapsedMs: 0,
-          lastTickTime: tasks.length > 0 ? now : null
+          lastTickTime: (shouldStart && tasks.length > 0) ? now : null
         };
         saveState(newState);
         return newState;

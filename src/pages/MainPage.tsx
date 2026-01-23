@@ -39,7 +39,7 @@ export function MainPage({ onNavigate }: MainPageProps) {
   const [showPreFlight, setShowPreFlight] = useState(false);
   const [passwordModal, setPasswordModal] = useState<{
     open: boolean;
-    action: 'extend' | 'pause' | 'restart';
+    action: 'extend' | 'pause' | 'restart' | 'stop';
     minutes?: number;
     clearTasks?: boolean;
   }>({ open: false, action: 'extend' });
@@ -112,10 +112,12 @@ export function MainPage({ onNavigate }: MainPageProps) {
           playPauseSound(settings.soundVolume);
         }
       } else if (passwordModal.action === 'restart') {
-        restartSession(passwordModal.clearTasks || false);
+        restartSession('restart', passwordModal.clearTasks || false);
         if (settings.soundEnabled) {
           playStartSound(settings.soundVolume);
         }
+      } else if (passwordModal.action === 'stop') {
+        restartSession('stop', passwordModal.clearTasks || false);
       }
       setPasswordModal({ open: false, action: 'extend' });
     }
@@ -343,13 +345,15 @@ export function MainPage({ onNavigate }: MainPageProps) {
             ? `Add ${passwordModal.minutes} minutes?`
             : passwordModal.action === 'restart'
               ? 'Restart Session'
-              : isPaused
-                ? 'Resume Session'
-                : 'Emergency Pause'
+              : passwordModal.action === 'stop'
+                ? 'Stop Session'
+                : isPaused
+                  ? 'Resume Session'
+                  : 'Emergency Pause'
         }
         description={
-          passwordModal.action === 'restart'
-            ? 'Enter your password to confirm session restart.'
+          passwordModal.action === 'restart' || passwordModal.action === 'stop'
+            ? `Enter your password to confirm session ${passwordModal.action}.`
             : passwordModal.action === 'extend'
               ? 'Enter your password to add extra time.'
               : isPaused
@@ -370,9 +374,9 @@ export function MainPage({ onNavigate }: MainPageProps) {
             onClick={() => setShowRestartChoice(false)}
           />
           <GlassCard className="relative w-full max-w-md space-y-6">
-            <h2 className="text-2xl font-bold text-white text-center">Restart Session?</h2>
+            <h2 className="text-2xl font-bold text-white text-center">Modify Session?</h2>
             <p className="text-white/60 text-center">
-              This will reset the timer to 0 and start from the beginning.
+              What would you like to do with the current session?
             </p>
             <div className="space-y-3">
               <Button 
@@ -382,18 +386,30 @@ export function MainPage({ onNavigate }: MainPageProps) {
                 }}
                 className="w-full"
               >
-                Restart & Keep Tasks
+                Restart Now (Timer to 0)
               </Button>
               <Button 
-                variant="ghost"
+                variant="secondary"
                 onClick={() => {
                   setShowRestartChoice(false);
-                  setPasswordModal({ open: true, action: 'restart', clearTasks: true });
+                  setPasswordModal({ open: true, action: 'stop', clearTasks: false });
                 }}
-                className="w-full text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                className="w-full"
               >
-                Restart & Clear All Tasks
+                Stop & Plan (Return to Idle)
               </Button>
+              <div className="pt-2 border-t border-white/10">
+                <Button 
+                  variant="ghost"
+                  onClick={() => {
+                    setShowRestartChoice(false);
+                    setPasswordModal({ open: true, action: 'stop', clearTasks: true });
+                  }}
+                  className="w-full text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                >
+                  Clear All & Reset App
+                </Button>
+              </div>
               <Button 
                 variant="ghost" 
                 onClick={() => setShowRestartChoice(false)}
