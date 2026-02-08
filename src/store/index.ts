@@ -50,6 +50,12 @@ interface StoreState extends AppState {
   removeTask: (id: string) => void;
   reorderTasks: (fromIndex: number, toIndex: number) => void;
   
+  // Pinned task actions
+  addPinnedTask: (name: string, durationHours: number, notes?: string) => void;
+  updatePinnedTask: (id: string, updates: Partial<Pick<Task, 'name' | 'durationHours' | 'notes'>>) => void;
+  removePinnedTask: (id: string) => void;
+  addPinnedTasksToSession: (taskIds: string[]) => void;
+  
   // Session actions
   createSession: () => void;
   startSession: () => void;
@@ -259,6 +265,93 @@ export const useStore = create<StoreState>()(
           ...state.currentSession,
           tasks
         };
+
+        const newState = { ...state, currentSession: newSession };
+        saveState(newState);
+        return newState;
+      });
+    },
+
+    // Pinned task actions
+    addPinnedTask: (name: string, durationHours: number, notes?: string) => {
+      set(state => {
+        const task: Task = {
+          id: generateId(),
+          name,
+          durationHours,
+          notes,
+          status: 'pending',
+          extensions: []
+        };
+        
+        const newState = {
+          ...state,
+          pinnedTasks: [...state.pinnedTasks, task]
+        };
+        saveState(newState);
+        return newState;
+      });
+    },
+
+    updatePinnedTask: (id: string, updates: Partial<Pick<Task, 'name' | 'durationHours' | 'notes'>>) => {
+      set(state => {
+        const newPinnedTasks = state.pinnedTasks.map(t =>
+          t.id === id ? { ...t, ...updates } : t
+        );
+        
+        const newState = { ...state, pinnedTasks: newPinnedTasks };
+        saveState(newState);
+        return newState;
+      });
+    },
+
+    removePinnedTask: (id: string) => {
+      set(state => {
+        const newPinnedTasks = state.pinnedTasks.filter(t => t.id !== id);
+        
+        const newState = { ...state, pinnedTasks: newPinnedTasks };
+        saveState(newState);
+        return newState;
+      });
+    },
+
+    addPinnedTasksToSession: (taskIds: string[]) => {
+      set(state => {
+        const tasksToAdd = state.pinnedTasks
+          .filter(t => taskIds.includes(t.id))
+          .map(t => ({
+            ...t,
+            id: generateId(), // Generate new IDs for session tasks
+            status: 'pending' as const,
+            extensions: []
+          }));
+
+        if (tasksToAdd.length === 0) return state;
+
+        const session = state.currentSession || {
+          id: generateId(),
+          date: getTodayDate(),
+          tasks: [],
+          state: 'idle',
+          currentTaskIndex: 0,
+          pauseEvents: [],
+          totalPlannedMs: 0,
+          totalActualMs: 0
+        };
+
+        let newSession: Session = {
+          ...session,
+          tasks: [...session.tasks, ...tasksToAdd],
+          totalPlannedMs: session.totalPlannedMs + tasksToAdd.reduce((sum, t) => sum + hoursToMs(t.durationHours), 0)
+        };
+
+        // If session is running, calculate scheduled times for the new tasks
+        if (newSession.state === 'running') {
+          const now = Date.now();
+          const currentTask = newSession.tasks[newSession.currentTaskIndex];
+          const startTime = currentTask.scheduledStartAt || (now - state.elapsedMs);
+          newSession = calculateScheduledTimes(newSession, startTime, newSession.currentTaskIndex);
+        }
 
         const newState = { ...state, currentSession: newSession };
         saveState(newState);

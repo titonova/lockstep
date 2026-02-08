@@ -9,4 +9,5 @@ export { PasswordModal } from './PasswordModal';
 export { QuoteDisplay } from './QuoteDisplay';
 export { CurrentDateTime } from './CurrentDateTime';
 export { DailySummaryCard } from './DailySummaryCard';
+export { PinnedTasksPanel } from './PinnedTasksPanel';
 export { ConfettiTrigger, triggerConfetti, triggerSessionCompleteConfetti } from './Confetti';

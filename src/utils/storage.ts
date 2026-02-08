@@ -60,6 +60,7 @@ export function loadState(): AppState {
         settings: { ...getDefaultSettings(), ...parsed.settings },
         currentSession,
         history: parsed.history || [],
+        pinnedTasks: parsed.pinnedTasks || [],
         timerActive,
         elapsedMs,
         lastTickTime
@@ -72,6 +73,7 @@ export function loadState(): AppState {
     settings: getDefaultSettings(),
     currentSession: null,
     history: [],
+    pinnedTasks: [],
     timerActive: false,
     elapsedMs: 0,
     lastTickTime: null

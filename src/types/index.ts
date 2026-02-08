@@ -92,6 +92,7 @@ export interface AppState {
   settings: Settings;
   currentSession: Session | null;
   history: DailySummary[];
+  pinnedTasks: Task[];
   timerActive: boolean;
   elapsedMs: number;
   lastTickTime: number | null;

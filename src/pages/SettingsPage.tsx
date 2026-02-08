@@ -29,6 +29,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   const [newQuoteText, setNewQuoteText] = useState('');
   const [newQuoteAuthor, setNewQuoteAuthor] = useState('');
   const [uploadError, setUploadError] = useState('');
+  const [showFormatTooltip, setShowFormatTooltip] = useState(false);
 
   const handlePasswordChange = async () => {
     setPasswordError('');
@@ -249,10 +250,36 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
                       onChange={handleFileUpload}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
-                    <Button variant="secondary" className="w-full">
-                      Upload Quotes JSON
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button variant="secondary" className="flex-1">
+                        Upload Quotes JSON
+                      </Button>
+                      <button
+                        onClick={() => setShowFormatTooltip(!showFormatTooltip)}
+                        className="text-white/60 hover:text-white text-sm px-2 py-1 rounded"
+                        title="Show JSON format"
+                      >
+                        [i]
+                      </button>
+                    </div>
                   </div>
+                  {showFormatTooltip && (
+                    <div className="bg-black/50 border border-white/20 rounded p-3 text-sm text-white/80">
+                      <p className="font-semibold mb-2">Expected JSON format:</p>
+                      <p>An array of quote objects. Each quote must have a "text" property (string). "author" is optional (string).</p>
+                      <pre className="bg-black/30 p-2 rounded mt-2 text-xs overflow-x-auto">
+{`[
+  {
+    "text": "The secret of getting ahead is getting started.",
+    "author": "Mark Twain"
+  },
+  {
+    "text": "Another inspiring quote"
+  }
+]`}
+                      </pre>
+                    </div>
+                  )}
                   {uploadError && (
                     <p className="text-red-400 text-sm">{uploadError}</p>
                   )}
