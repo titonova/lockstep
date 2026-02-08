@@ -104,12 +104,12 @@ export function exportData(state: AppState): string {
 export function importData(json: string): AppState | null {
   try {
     const data = JSON.parse(json);
-    // Validate basic structure
     if (data.settings && typeof data.settings === 'object') {
       return {
         settings: { ...getDefaultSettings(), ...data.settings },
         currentSession: data.currentSession || null,
         history: data.history || [],
+        pinnedTasks: data.pinnedTasks || [],
         timerActive: data.timerActive || false,
         elapsedMs: data.elapsedMs || 0,
         lastTickTime: data.lastTickTime || null
