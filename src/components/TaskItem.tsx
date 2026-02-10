@@ -96,7 +96,14 @@ export function TaskItem({
           </div>
 
           {/* Duration */}
-          <div className="text-white/60 text-sm">
+          <div 
+            className="text-white/60 text-sm"
+            title={task.scheduledCompleteAt ? new Date(task.scheduledCompleteAt).toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            }) : ''}
+          >
             {formatHours(task.durationHours)}
           </div>
 
