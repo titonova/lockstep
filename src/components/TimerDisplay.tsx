@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { formatTime, hoursToMs, minutesToMs, getRemainingPercent, getTimerColor, shouldShowExtensions } from '../utils/time';
+import { formatTime, hoursToMs, minutesToMs, getRemainingPercent, getTimerColor, shouldShowExtensions, formatEndTime } from '../utils/time';
 import { useStore } from '../store';
 import { Task } from '../types';
 
@@ -74,8 +74,10 @@ export function TimerDisplay({
           )}
         </div>
         {!isCompleted && (
-          <div className="text-white/40 text-sm mt-2">
-            {formatTime(elapsedMs)} elapsed
+          <div className="text-white/40 text-sm mt-2 flex items-center justify-center gap-2">
+            <span>{formatTime(elapsedMs)} elapsed</span>
+            <span className="text-white/20">·</span>
+            <span>ends {formatEndTime(Date.now() + remainingMs)}</span>
           </div>
         )}
       </div>

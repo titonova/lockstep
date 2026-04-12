@@ -251,9 +251,9 @@ export function MainPage({ onNavigate }: MainPageProps) {
               <div className="text-center space-y-6">
                 <div className="text-6xl">⏸️</div>
                 <h2 className="text-2xl font-bold text-white">Session Paused</h2>
-                <p className="text-white/60">Enter your password to resume</p>
+                <p className="text-white/60">Resume when you're ready to continue.</p>
                 <Button 
-                  onClick={() => setPasswordModal({ open: true, action: 'pause' })}
+                  onClick={() => resumeFromPause()}
                   className="mx-auto"
                   size="lg"
                 >
@@ -278,6 +278,7 @@ export function MainPage({ onNavigate }: MainPageProps) {
             tasks={tasks}
             currentTaskIndex={currentTaskIndex}
             isSessionActive={isRunning || isPaused}
+            elapsedMs={elapsedMs}
             onAddTask={addTask}
             onUpdateTask={updateTask}
             onRemoveTask={removeTask}
@@ -375,7 +376,7 @@ export function MainPage({ onNavigate }: MainPageProps) {
                 ? 'Enter your password to continue.'
                 : 'Enter your password and hold to pause. This will be logged.'
         }
-        requireLongPress={passwordModal.action === 'pause' && !isPaused}
+        requireLongPress={(passwordModal.action === 'pause' && !isPaused) || passwordModal.action === 'restart' || passwordModal.action === 'stop'}
         longPressSeconds={settings.longPressSeconds}
         onSubmit={isPaused ? handleResume : handlePasswordSubmit}
         onCancel={() => setPasswordModal({ open: false, action: 'extend' })}

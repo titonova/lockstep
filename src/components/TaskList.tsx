@@ -3,12 +3,13 @@ import { Task } from '../types';
 import { TaskItem } from './TaskItem';
 import { Input } from './Input';
 import { Button } from './Button';
-import { formatHours } from '../utils/time';
+import { formatHours, hoursToMs, minutesToMs, formatEndTime } from '../utils/time';
 
 interface TaskListProps {
   tasks: Task[];
   currentTaskIndex: number;
   isSessionActive: boolean;
+  elapsedMs?: number;
   onAddTask: (name: string, durationHours: number, notes?: string) => void;
   onUpdateTask: (id: string, updates: Partial<Pick<Task, 'name' | 'durationHours' | 'notes'>>) => void;
   onRemoveTask: (id: string) => void;
@@ -18,6 +19,7 @@ interface TaskListProps {
 export function TaskList({
   tasks,
   currentTaskIndex,
+  elapsedMs = 0,
   isSessionActive,
   onAddTask,
   onUpdateTask,
@@ -64,18 +66,58 @@ export function TaskList({
   const completedHours = tasks
     .filter(t => t.status === 'completed')
     .reduce((sum, t) => sum + t.durationHours, 0);
+// Compute the expected end time for task at a given index (real-time, respects task order).
+  // Returns null if the session isn't active or the task is already completed/skipped.
+  const computeExpectedEndTime = (taskIndex: number): number | null => {
+    if (!isSessionActive || taskIndex < currentTaskIndex) return null;
+    const task = tasks[taskIndex];
+    if (!task || task.status === 'completed' || task.status === 'skipped') return null;
+
+    let offsetMs = 0;
+    for (let i = currentTaskIndex; i <= taskIndex; i++) {
+      const t = tasks[i];
+      if (!t) continue;
+      const total = hoursToMs(t.durationHours) + t.extensions.reduce((s, e) => s + minutesToMs(e.minutes), 0);
+      if (i === currentTaskIndex) {
+        offsetMs += Math.max(0, total - elapsedMs);
+      } else {
+        offsetMs += total;
+      }
+    }
+    return Date.now() + offsetMs;
+  };
+
+  // Expected time when all remaining tasks are done
+  const sessionEndTime: number | null = (() => {
+    if (!isSessionActive || currentTaskIndex >= tasks.length) return null;
+    let offsetMs = 0;
+    for (let i = currentTaskIndex; i < tasks.length; i++) {
+      const t = tasks[i];
+      if (t.status === 'completed' || t.status === 'skipped') continue;
+      const total = hoursToMs(t.durationHours) + t.extensions.reduce((s, e) => s + minutesToMs(e.minutes), 0);
+      offsetMs += i === currentTaskIndex ? Math.max(0, total - elapsedMs) : total;
+    }
+    return Date.now() + offsetMs;
+  })();
 
   return (
     <div className="space-y-4">
       {/* Summary */}
       <div className="flex items-center justify-between text-sm text-white/60">
         <span>{tasks.length} tasks</span>
-        <span>
-          {isSessionActive 
-            ? `${formatHours(completedHours)} / ${formatHours(totalHours)}`
-            : formatHours(totalHours)
-          }
-        </span>
+        <div className="flex items-center gap-2">
+          <span>
+            {isSessionActive
+              ? `${formatHours(completedHours)} / ${formatHours(totalHours)}`
+              : formatHours(totalHours)}
+          </span>
+          {sessionEndTime !== null && (
+            <>
+              <span className="text-white/20">·</span>
+              <span>done by {formatEndTime(sessionEndTime)}</span>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Task list */}
@@ -87,6 +129,7 @@ export function TaskList({
             index={index}
             isEditable={!isSessionActive || index > currentTaskIndex}
             isSessionActive={isSessionActive}
+            expectedEndTime={computeExpectedEndTime(index)}
             onUpdate={onUpdateTask}
             onRemove={onRemoveTask}
             onDragStart={handleDragStart}
@@ -130,10 +173,14 @@ export function TaskList({
                   />
                 </div>
                 <div className="flex-1">
-                  <Input
+                  <textarea
                     value={newTaskNotes}
                     onChange={(e) => setNewTaskNotes(e.target.value)}
-                    placeholder="Notes (optional)"
+                    placeholder="Description — supports **markdown** (optional)"
+                    rows={3}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 
+                      text-white placeholder-white/40 focus:outline-none focus:border-white/30 
+                      focus:bg-white/8 transition-all resize-y text-sm"
                   />
                 </div>
               </div>
