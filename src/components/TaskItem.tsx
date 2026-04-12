@@ -1,14 +1,17 @@
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Task } from '../types';
 import { Input } from './Input';
 import { Button } from './Button';
-import { formatHours } from '../utils/time';
+import { formatHours, formatEndTime } from '../utils/time';
 
 interface TaskItemProps {
   task: Task;
   index: number;
   isEditable: boolean;
   isSessionActive?: boolean;
+  expectedEndTime?: number | null;
   onUpdate: (id: string, updates: Partial<Pick<Task, 'name' | 'durationHours' | 'notes'>>) => void;
   onRemove: (id: string) => void;
   onDragStart?: (index: number) => void;
@@ -22,6 +25,7 @@ export function TaskItem({
   index,
   isEditable,
   isSessionActive = false,
+  expectedEndTime,
   onUpdate,
   onRemove,
   onDragStart,
@@ -91,20 +95,29 @@ export function TaskItem({
               {task.name}
             </h3>
             {task.notes && (
-              <p className="text-sm text-white/40 truncate">{task.notes}</p>
+              <div className="text-sm text-white/40 mt-0.5 line-clamp-2 prose prose-sm prose-invert max-w-none
+                [&_p]:m-0 [&_ul]:m-0 [&_ol]:m-0 [&_li]:m-0 [&_code]:text-xs [&_strong]:text-white/60">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{task.notes}</ReactMarkdown>
+              </div>
             )}
           </div>
 
-          {/* Duration */}
-          <div 
-            className="text-white/60 text-sm"
-            title={task.scheduledCompleteAt ? new Date(task.scheduledCompleteAt).toLocaleTimeString('en-US', {
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false
-            }) : ''}
-          >
-            {formatHours(task.durationHours)}
+          {/* Duration with custom end-time tooltip */}
+          <div className="relative group flex-shrink-0 text-right">
+            <div className="text-white/60 text-sm cursor-default">
+              {formatHours(task.durationHours)}
+            </div>
+            {expectedEndTime != null && (
+              <div className="absolute right-0 bottom-full mb-1.5 px-2.5 py-1.5
+                text-xs bg-slate-800/95 border border-white/15 rounded-lg text-white/80
+                whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity
+                pointer-events-none z-20 shadow-xl">
+                ends {formatEndTime(expectedEndTime)}
+                <div className="absolute top-full right-3 w-0 h-0
+                  border-l-4 border-r-4 border-t-4
+                  border-l-transparent border-r-transparent border-t-slate-800/95" />
+              </div>
+            )}
           </div>
 
           {/* Edit button */}
@@ -153,11 +166,16 @@ export function TaskItem({
               <p className="text-xs text-white/40 mt-1">Duration (hours)</p>
             </div>
             <div className="flex-1">
-              <Input
+              <textarea
                 value={editNotes}
                 onChange={(e) => setEditNotes(e.target.value)}
-                placeholder="Notes (optional)"
+                placeholder="Description — supports **markdown** (optional)"
+                rows={4}
+                className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10
+                  text-white placeholder-white/40 focus:outline-none focus:border-white/30
+                  focus:bg-white/8 transition-all resize-y text-sm"
               />
+              <p className="text-xs text-white/40 mt-1">Supports markdown</p>
             </div>
           </div>
           <div className="flex gap-2 justify-end">

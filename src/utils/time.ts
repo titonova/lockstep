@@ -131,3 +131,29 @@ export function getTaskTotalDuration(task: { durationHours: number; extensions: 
   return hoursToMs(task.durationHours) + 
     task.extensions.reduce((sum, ext) => sum + minutesToMs(ext.minutes), 0);
 }
+
+/**
+ * Format an absolute timestamp as a human-readable end time.
+ * Shows 12-hour time. Adds date (e.g. "Mon Apr 13") only if it is not today.
+ */
+export function formatEndTime(timestamp: number): string {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+
+  const timeStr = date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+
+  if (isToday) return timeStr;
+
+  const dateStr = date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric'
+  });
+
+  return `${timeStr}, ${dateStr}`;
+}
