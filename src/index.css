@@ -149,6 +149,11 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* Landing page smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
 /* Number input hide spinners */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
