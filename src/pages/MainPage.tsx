@@ -288,7 +288,7 @@ export function MainPage({ onNavigate }: MainPageProps) {
 
         {/* Action buttons */}
         {isIdle && tasks.length > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-slate-900 to-transparent">
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#080c14] to-transparent">
             <div className="max-w-2xl mx-auto">
               <Button
                 onClick={() => setShowPreFlight(true)}

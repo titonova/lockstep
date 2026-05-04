@@ -83,7 +83,7 @@ function LandingBackground() {
     resize();
     window.addEventListener('resize', resize);
 
-    const palette = ['#1e293b', '#334155', '#0f172a', '#162032'];
+    const palette = ['#080c14', '#0d1520', '#0a1018', '#06090f'];
 
     const draw = () => {
       t += 0.0004;
@@ -132,7 +132,7 @@ function LandingBackground() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="fixed inset-0 -z-10" style={{ background: '#0f172a' }} />;
+  return <canvas ref={canvasRef} className="fixed inset-0 -z-10" style={{ background: '#080c14' }} />;
 }
 
 export function LandingPage({ onGetStarted }: LandingPageProps) {
@@ -141,7 +141,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
       <LandingBackground />
 
       {/* ── Top bar ── */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 border-b border-white/5 backdrop-blur-md bg-[#0f172a]/60">
+      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 border-b border-white/5 backdrop-blur-md bg-[#080c14]/60">
         <div className="flex items-center gap-3">
           {/* Lockstep wordmark */}
           <div className="flex items-center gap-2">
@@ -259,7 +259,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-white/5 rounded-xl overflow-hidden">
             {FEATURES.map((f, i) => (
-              <div key={i} className="bg-[#0f172a] p-8 hover:bg-white/[0.03] transition-colors">
+              <div key={i} className="bg-[#080c14] p-8 hover:bg-white/[0.03] transition-colors">
                 <div className="w-1 h-4 bg-green-500/60 mb-5 rounded-full" />
                 <h3 className="text-sm font-semibold text-white/90 mb-2">{f.label}</h3>
                 <p className="text-sm text-white/40 leading-relaxed">{f.description}</p>

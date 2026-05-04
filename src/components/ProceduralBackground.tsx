@@ -34,9 +34,9 @@ export function ProceduralBackground({ intensity = 'standard' }: ProceduralBackg
     const speed = speeds[intensity];
     
     const colors = {
-      calm: ['#1e3a5f', '#2d4a6f', '#1a2a3f'],
-      standard: ['#1e293b', '#334155', '#0f172a', '#1e1b4b'],
-      aggressive: ['#1e1b4b', '#3b0764', '#0f172a', '#450a0a']
+      calm: ['#0d1a2e', '#111e30', '#080c14'],
+      standard: ['#080c14', '#0d1520', '#0a1018', '#06090f'],
+      aggressive: ['#0e0a1e', '#1a0538', '#080c14', '#1a0505']
     };
 
     const palette = colors[intensity];
@@ -104,7 +104,7 @@ export function ProceduralBackground({ intensity = 'standard' }: ProceduralBackg
     <canvas
       ref={canvasRef}
       className="fixed inset-0 -z-10"
-      style={{ background: '#0f172a' }}
+      style={{ background: '#080c14' }}
     />
   );
 }

@@ -97,7 +97,7 @@ export function PinnedTasksPanel({
       />
 
       {/* Panel */}
-      <div className="relative ml-auto w-full max-w-md h-full bg-slate-900/95 backdrop-blur-xl border-l border-white/10 overflow-y-auto">
+      <div className="relative ml-auto w-full max-w-md h-full bg-[#080c14]/95 backdrop-blur-xl border-l border-white/10 overflow-y-auto">
         <div className="p-6 space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -264,7 +264,7 @@ export function PinnedTasksPanel({
 
           {/* Add selected to session button */}
           {selectedTaskIds.length > 0 && (
-            <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-slate-900 to-transparent">
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#080c14] to-transparent">
               <div className="max-w-md ml-auto">
                 <Button
                   onClick={handleAddSelectedToSession}
