@@ -6,20 +6,37 @@ import { Onboarding } from './pages/Onboarding';
 import { MainPage } from './pages/MainPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { LandingPage } from './pages/LandingPage';
 
 type Page = 'main' | 'history' | 'settings';
 
 function App() {
   const settings = useStore(state => state.settings);
-  const [showOnboarding, setShowOnboarding] = useState(!settings.onboardingCompleted);
+  const [showLanding, setShowLanding] = useState(!settings.onboardingCompleted);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [currentPage, setCurrentPage] = useState<Page>('main');
 
   useEffect(() => {
-    setShowOnboarding(!settings.onboardingCompleted);
+    if (settings.onboardingCompleted) {
+      setShowLanding(false);
+      setShowOnboarding(false);
+    }
   }, [settings.onboardingCompleted]);
 
+  // Show landing page for first-time visitors (no password set)
+  if (showLanding && !settings.onboardingCompleted) {
+    return (
+      <LandingPage
+        onGetStarted={() => {
+          setShowLanding(false);
+          setShowOnboarding(true);
+        }}
+      />
+    );
+  }
+
   const renderPage = () => {
-    if (showOnboarding) {
+    if (showOnboarding || !settings.onboardingCompleted) {
       return <Onboarding onComplete={() => setShowOnboarding(false)} />;
     }
 

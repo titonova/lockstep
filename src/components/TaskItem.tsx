@@ -109,13 +109,13 @@ export function TaskItem({
             </div>
             {expectedEndTime != null && (
               <div className="absolute right-0 bottom-full mb-1.5 px-2.5 py-1.5
-                text-xs bg-slate-800/95 border border-white/15 rounded-lg text-white/80
+                text-xs bg-[#0d1520]/95 border border-white/15 rounded-lg text-white/80
                 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity
                 pointer-events-none z-20 shadow-xl">
                 ends {formatEndTime(expectedEndTime)}
                 <div className="absolute top-full right-3 w-0 h-0
                   border-l-4 border-r-4 border-t-4
-                  border-l-transparent border-r-transparent border-t-slate-800/95" />
+                  border-l-transparent border-r-transparent border-t-[#0d1520]/95" />
               </div>
             )}
           </div>
