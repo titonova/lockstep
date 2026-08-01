@@ -7,9 +7,10 @@ import { PasswordModal } from '../components/PasswordModal';
 import { QuoteDisplay } from '../components/QuoteDisplay';
 import { PinnedTasksPanel } from '../components/PinnedTasksPanel';
 import { Button } from '../components/Button';
-import { formatHours, hoursToMs, minutesToMs, formatTime } from '../utils/time';
+import { formatHours, hoursToMs, minutesToMs, formatTime, getTodayDate } from '../utils/time';
 import { playStartSound, playCompletionSound, playExtensionSound, playPauseSound } from '../utils/audio';
 import { triggerConfetti, triggerSessionCompleteConfetti } from '../components/Confetti';
+import { Task } from '../types';
 
 interface MainPageProps {
   onNavigate: (page: 'history' | 'settings') => void;
@@ -19,18 +20,26 @@ export function MainPage({ onNavigate }: MainPageProps) {
   const {
     settings,
     currentSession,
+    plannedSessions,
     pinnedTasks,
     timerActive,
     elapsedMs,
     createSession,
     addTask,
+    addTaskForDate,
     updateTask,
+    updateTaskForDate,
     removeTask,
+    removeTaskForDate,
     reorderTasks,
+    reorderTasksForDate,
     addPinnedTask,
     updatePinnedTask,
     removePinnedTask,
     addPinnedTasksToSession,
+    addPinnedTasksToDate,
+    setPlanAutoStart,
+    reconcilePlans,
     startSession,
     completeCurrentTask,
     tick,
@@ -52,13 +61,28 @@ export function MainPage({ onNavigate }: MainPageProps) {
   const [showRestartChoice, setShowRestartChoice] = useState(false);
   const [sessionComplete, setSessionComplete] = useState(false);
   const [showPinnedTasksPanel, setShowPinnedTasksPanel] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(getTodayDate());
 
-  // Create session if none exists
+  // Reconcile dated plans on load, focus, and while the app remains open.
   useEffect(() => {
-    if (!currentSession) {
+    reconcilePlans();
+    const handleVisibility = () => { if (document.visibilityState === 'visible') reconcilePlans(); };
+    window.addEventListener('focus', reconcilePlans);
+    document.addEventListener('visibilitychange', handleVisibility);
+    const interval = window.setInterval(reconcilePlans, 30000);
+    return () => {
+      window.removeEventListener('focus', reconcilePlans);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.clearInterval(interval);
+    };
+  }, [reconcilePlans]);
+
+  // Create today's empty session only after dated-plan reconciliation.
+  useEffect(() => {
+    if (!currentSession && selectedDate === getTodayDate() && !plannedSessions.some(plan => plan.date === getTodayDate())) {
       createSession();
     }
-  }, [currentSession, createSession]);
+  }, [currentSession, plannedSessions, createSession, selectedDate]);
 
   // Timer tick
   useEffect(() => {
@@ -140,12 +164,36 @@ export function MainPage({ onNavigate }: MainPageProps) {
     return isValid;
   };
 
-  const tasks = currentSession?.tasks || [];
-  const currentTaskIndex = currentSession?.currentTaskIndex || 0;
+  const selectedPlan = selectedDate === getTodayDate()
+    ? currentSession
+    : plannedSessions.find(plan => plan.date === selectedDate) || null;
+  const tasks = selectedPlan?.tasks || [];
+  const currentTaskIndex = selectedPlan?.currentTaskIndex || 0;
   const currentTask = tasks[currentTaskIndex];
-  const isRunning = currentSession?.state === 'running';
-  const isPaused = currentSession?.state === 'paused';
-  const isIdle = currentSession?.state === 'idle' || !currentSession;
+  const isToday = selectedDate === getTodayDate();
+  const isRunning = isToday && currentSession?.state === 'running';
+  const isPaused = isToday && currentSession?.state === 'paused';
+  const isIdle = isToday && (currentSession?.state === 'idle' || !currentSession);
+  const isFuturePlan = selectedDate > getTodayDate();
+  const isReadOnlyDate = selectedDate < getTodayDate();
+  const planAutoStart = selectedPlan?.autoStart || false;
+
+  const handleAddTask = (name: string, durationHours: number, notes?: string) => {
+    if (isToday) addTask(name, durationHours, notes);
+    else addTaskForDate(selectedDate, name, durationHours, notes);
+  };
+  const handleUpdateTask = (id: string, updates: Partial<Pick<Task, 'name' | 'durationHours' | 'notes'>>) => {
+    if (isToday) updateTask(id, updates);
+    else updateTaskForDate(selectedDate, id, updates);
+  };
+  const handleRemoveTask = (id: string) => {
+    if (isToday) removeTask(id);
+    else removeTaskForDate(selectedDate, id);
+  };
+  const handleReorderTasks = (fromIndex: number, toIndex: number) => {
+    if (isToday) reorderTasks(fromIndex, toIndex);
+    else reorderTasksForDate(selectedDate, fromIndex, toIndex);
+  };
 
   const totalHours = tasks.reduce((sum, t) => sum + t.durationHours, 0);
   const canStart = tasks.length > 0 && tasks.every(t => t.name && t.durationHours > 0);
@@ -241,6 +289,39 @@ export function MainPage({ onNavigate }: MainPageProps) {
           </div>
         </div>
 
+        {/* Plan date */}
+        <GlassCard className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm text-white/50">Planning day</p>
+              <p className="text-white font-semibold">
+                {isToday ? 'Today' : new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+              </p>
+            </div>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(event) => setSelectedDate(event.target.value || getTodayDate())}
+              className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+            />
+          </div>
+          {isFuturePlan && (
+            <label className="flex items-center gap-3 text-sm text-white/70">
+              <input
+                type="checkbox"
+                checked={planAutoStart}
+                disabled={!selectedPlan || tasks.length === 0}
+                onChange={(event) => setPlanAutoStart(selectedDate, event.target.checked)}
+                className="h-4 w-4 rounded"
+              />
+              Start automatically when this day arrives
+            </label>
+          )}
+          {!isToday && !selectedPlan && (
+            <p className="text-sm text-white/40">Add tasks to create a plan for this day.</p>
+          )}
+        </GlassCard>
+
         {/* Quote */}
         <QuoteDisplay quotes={settings.quotes} enabled={settings.quotesEnabled} />
 
@@ -279,10 +360,11 @@ export function MainPage({ onNavigate }: MainPageProps) {
             currentTaskIndex={currentTaskIndex}
             isSessionActive={isRunning || isPaused}
             elapsedMs={elapsedMs}
-            onAddTask={addTask}
-            onUpdateTask={updateTask}
-            onRemoveTask={removeTask}
-            onReorderTasks={reorderTasks}
+            isReadOnly={isReadOnlyDate}
+            onAddTask={handleAddTask}
+            onUpdateTask={handleUpdateTask}
+            onRemoveTask={handleRemoveTask}
+            onReorderTasks={handleReorderTasks}
           />
         </GlassCard>
 
@@ -439,14 +521,14 @@ export function MainPage({ onNavigate }: MainPageProps) {
       )}
 
       {/* Pinned Tasks Panel */}
-      <PinnedTasksPanel
+        <PinnedTasksPanel
         pinnedTasks={pinnedTasks}
         isOpen={showPinnedTasksPanel}
         onClose={() => setShowPinnedTasksPanel(false)}
         onAddPinnedTask={addPinnedTask}
         onUpdatePinnedTask={updatePinnedTask}
         onRemovePinnedTask={removePinnedTask}
-        onAddToSession={addPinnedTasksToSession}
+        onAddToSession={(taskIds) => isToday ? addPinnedTasksToSession(taskIds) : addPinnedTasksToDate(selectedDate, taskIds)}
       />
     </div>
   );

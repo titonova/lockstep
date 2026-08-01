@@ -52,6 +52,8 @@ export interface Session {
   pauseEvents: PauseEvent[];
   totalPlannedMs: number;
   totalActualMs: number;
+  /** Future plans may opt into starting when promoted on their date. */
+  autoStart?: boolean;
 }
 
 // Daily summary for history
@@ -91,6 +93,8 @@ export interface Settings {
 export interface AppState {
   settings: Settings;
   currentSession: Session | null;
+  /** Plans for dates other than the current runtime session. */
+  plannedSessions: Session[];
   history: DailySummary[];
   pinnedTasks: Task[];
   timerActive: boolean;

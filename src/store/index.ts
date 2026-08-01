@@ -46,18 +46,25 @@ interface StoreState extends AppState {
   
   // Task actions
   addTask: (name: string, durationHours: number, notes?: string) => void;
+  addTaskForDate: (date: string, name: string, durationHours: number, notes?: string) => void;
   updateTask: (id: string, updates: Partial<Pick<Task, 'name' | 'durationHours' | 'notes'>>) => void;
+  updateTaskForDate: (date: string, id: string, updates: Partial<Pick<Task, 'name' | 'durationHours' | 'notes'>>) => void;
   removeTask: (id: string) => void;
+  removeTaskForDate: (date: string, id: string) => void;
   reorderTasks: (fromIndex: number, toIndex: number) => void;
+  reorderTasksForDate: (date: string, fromIndex: number, toIndex: number) => void;
+  setPlanAutoStart: (date: string, autoStart: boolean) => void;
   
   // Pinned task actions
   addPinnedTask: (name: string, durationHours: number, notes?: string) => void;
   updatePinnedTask: (id: string, updates: Partial<Pick<Task, 'name' | 'durationHours' | 'notes'>>) => void;
   removePinnedTask: (id: string) => void;
   addPinnedTasksToSession: (taskIds: string[]) => void;
+  addPinnedTasksToDate: (date: string, taskIds: string[]) => void;
   
   // Session actions
   createSession: () => void;
+  reconcilePlans: () => void;
   startSession: () => void;
   completeCurrentTask: (early?: boolean) => void;
   restartSession: (action: 'restart' | 'stop', clearTasks: boolean) => void;
@@ -84,10 +91,73 @@ interface StoreState extends AppState {
 
 const initialState = loadState();
 
+function createEmptySession(date: string): Session {
+  return {
+    id: generateId(),
+    date,
+    tasks: [],
+    state: 'idle',
+    currentTaskIndex: 0,
+    pauseEvents: [],
+    totalPlannedMs: 0,
+    totalActualMs: 0
+  };
+}
+
 export const useStore = create<StoreState>()(
   subscribeWithSelector((set, get) => ({
     // Initial state
     ...initialState,
+
+    reconcilePlans: () => {
+      set(state => {
+        const today = getTodayDate();
+        let currentSession = state.currentSession;
+        let plannedSessions = [...state.plannedSessions];
+        let timerActive = state.timerActive;
+        let elapsedMs = state.elapsedMs;
+        let lastTickTime = state.lastTickTime;
+
+        // A prepared, non-running session from a previous date is retained as a plan.
+        if (currentSession && currentSession.date !== today && currentSession.state === 'idle' && currentSession.tasks.length > 0) {
+          if (!plannedSessions.some(plan => plan.date === currentSession!.date)) {
+            plannedSessions.push(currentSession);
+          }
+          currentSession = null;
+        }
+
+        const duePlan = plannedSessions.find(plan => plan.date === today);
+        const currentHasWork = currentSession && (currentSession.tasks.length > 0 || currentSession.state !== 'idle');
+        if (duePlan && !currentHasWork) {
+          currentSession = duePlan;
+          plannedSessions = plannedSessions.filter(plan => plan.id !== duePlan.id);
+          if (duePlan.autoStart && duePlan.tasks.length > 0) {
+            const now = Date.now();
+            currentSession = {
+              ...duePlan,
+              state: 'running',
+              startedAt: now,
+              currentTaskIndex: 0,
+              tasks: duePlan.tasks.map((task, index) => ({
+                ...task,
+                status: index === 0 ? 'active' as const : 'pending' as const,
+                startedAt: index === 0 ? now : undefined
+              }))
+            };
+            currentSession = calculateScheduledTimes(currentSession, now, 0);
+            timerActive = true;
+            elapsedMs = 0;
+            lastTickTime = now;
+          }
+        }
+
+        const newState = { ...state, currentSession, plannedSessions, timerActive, elapsedMs, lastTickTime };
+        if (currentSession !== state.currentSession || plannedSessions.length !== state.plannedSessions.length || timerActive !== state.timerActive) {
+          saveState(newState);
+        }
+        return newState;
+      });
+    },
 
     // Settings actions
     setPassword: async (password: string) => {
@@ -200,6 +270,29 @@ export const useStore = create<StoreState>()(
       });
     },
 
+    addTaskForDate: (date: string, name: string, durationHours: number, notes?: string) => {
+      if (date === getTodayDate()) {
+        get().addTask(name, durationHours, notes);
+        return;
+      }
+      set(state => {
+        const task: Task = { id: generateId(), name, durationHours, notes, status: 'pending', extensions: [] };
+        const existing = state.plannedSessions.find(plan => plan.date === date);
+        const session = existing || createEmptySession(date);
+        const newSession = {
+          ...session,
+          tasks: [...session.tasks, task],
+          totalPlannedMs: session.totalPlannedMs + hoursToMs(durationHours)
+        };
+        const plannedSessions = existing
+          ? state.plannedSessions.map(plan => plan.id === session.id ? newSession : plan)
+          : [...state.plannedSessions, newSession];
+        const newState = { ...state, plannedSessions };
+        saveState(newState);
+        return newState;
+      });
+    },
+
     updateTask: (id: string, updates: Partial<Pick<Task, 'name' | 'durationHours' | 'notes'>>) => {
       set(state => {
         if (!state.currentSession) return state;
@@ -227,6 +320,20 @@ export const useStore = create<StoreState>()(
       });
     },
 
+    updateTaskForDate: (date: string, id: string, updates: Partial<Pick<Task, 'name' | 'durationHours' | 'notes'>>) => {
+      if (date === getTodayDate()) { get().updateTask(id, updates); return; }
+      set(state => {
+        const plan = state.plannedSessions.find(item => item.date === date);
+        const oldTask = plan?.tasks.find(task => task.id === id);
+        if (!plan || !oldTask) return state;
+        const durationDiff = updates.durationHours === undefined ? 0 : hoursToMs(updates.durationHours) - hoursToMs(oldTask.durationHours);
+        const newPlan = { ...plan, tasks: plan.tasks.map(task => task.id === id ? { ...task, ...updates } : task), totalPlannedMs: plan.totalPlannedMs + durationDiff };
+        const newState = { ...state, plannedSessions: state.plannedSessions.map(item => item.id === plan.id ? newPlan : item) };
+        saveState(newState);
+        return newState;
+      });
+    },
+
     removeTask: (id: string) => {
       set(state => {
         if (!state.currentSession) return state;
@@ -242,6 +349,20 @@ export const useStore = create<StoreState>()(
         };
 
         const newState = { ...state, currentSession: newSession };
+        saveState(newState);
+        return newState;
+      });
+    },
+
+    removeTaskForDate: (date: string, id: string) => {
+      if (date === getTodayDate()) { get().removeTask(id); return; }
+      set(state => {
+        const plan = state.plannedSessions.find(item => item.date === date);
+        const task = plan?.tasks.find(item => item.id === id);
+        if (!plan || !task) return state;
+        const newPlan = { ...plan, tasks: plan.tasks.filter(item => item.id !== id), totalPlannedMs: plan.totalPlannedMs - hoursToMs(task.durationHours) };
+        const plannedSessions = newPlan.tasks.length === 0 ? state.plannedSessions.filter(item => item.id !== plan.id) : state.plannedSessions.map(item => item.id === plan.id ? newPlan : item);
+        const newState = { ...state, plannedSessions };
         saveState(newState);
         return newState;
       });
@@ -267,6 +388,31 @@ export const useStore = create<StoreState>()(
         };
 
         const newState = { ...state, currentSession: newSession };
+        saveState(newState);
+        return newState;
+      });
+    },
+
+    reorderTasksForDate: (date: string, fromIndex: number, toIndex: number) => {
+      if (date === getTodayDate()) { get().reorderTasks(fromIndex, toIndex); return; }
+      set(state => {
+        const plan = state.plannedSessions.find(item => item.date === date);
+        if (!plan || fromIndex < 0 || toIndex < 0 || fromIndex >= plan.tasks.length || toIndex >= plan.tasks.length) return state;
+        const tasks = [...plan.tasks];
+        const [removed] = tasks.splice(fromIndex, 1);
+        tasks.splice(toIndex, 0, removed);
+        const newPlan = { ...plan, tasks };
+        const newState = { ...state, plannedSessions: state.plannedSessions.map(item => item.id === plan.id ? newPlan : item) };
+        saveState(newState);
+        return newState;
+      });
+    },
+
+    setPlanAutoStart: (date: string, autoStart: boolean) => {
+      set(state => {
+        const plan = state.plannedSessions.find(item => item.date === date);
+        if (!plan) return state;
+        const newState = { ...state, plannedSessions: state.plannedSessions.map(item => item.id === plan.id ? { ...item, autoStart } : item) };
         saveState(newState);
         return newState;
       });
@@ -359,19 +505,25 @@ export const useStore = create<StoreState>()(
       });
     },
 
+    addPinnedTasksToDate: (date: string, taskIds: string[]) => {
+      if (date === getTodayDate()) { get().addPinnedTasksToSession(taskIds); return; }
+      set(state => {
+        const tasksToAdd = state.pinnedTasks.filter(task => taskIds.includes(task.id)).map(task => ({ ...task, id: generateId(), status: 'pending' as const, extensions: [] }));
+        if (tasksToAdd.length === 0) return state;
+        const existing = state.plannedSessions.find(plan => plan.date === date);
+        const session = existing || createEmptySession(date);
+        const newSession = { ...session, tasks: [...session.tasks, ...tasksToAdd], totalPlannedMs: session.totalPlannedMs + tasksToAdd.reduce((sum, task) => sum + hoursToMs(task.durationHours), 0) };
+        const plannedSessions = existing ? state.plannedSessions.map(plan => plan.id === session.id ? newSession : plan) : [...state.plannedSessions, newSession];
+        const newState = { ...state, plannedSessions };
+        saveState(newState);
+        return newState;
+      });
+    },
+
     // Session actions
     createSession: () => {
       set(state => {
-        const session: Session = {
-          id: generateId(),
-          date: getTodayDate(),
-          tasks: [],
-          state: 'idle',
-          currentTaskIndex: 0,
-          pauseEvents: [],
-          totalPlannedMs: 0,
-          totalActualMs: 0
-        };
+        const session = createEmptySession(getTodayDate());
         const newState = { ...state, currentSession: session };
         saveState(newState);
         return newState;
@@ -846,6 +998,7 @@ export const useStore = create<StoreState>()(
       return JSON.stringify({
         settings: state.settings,
         currentSession: state.currentSession,
+        plannedSessions: state.plannedSessions,
         history: state.history,
         timerActive: state.timerActive,
         elapsedMs: state.elapsedMs,
@@ -862,6 +1015,7 @@ export const useStore = create<StoreState>()(
               ...state,
               settings: { ...getDefaultSettings(), ...data.settings },
               currentSession: data.currentSession || null,
+              plannedSessions: data.plannedSessions || [],
               history: data.history || [],
               timerActive: data.timerActive || false,
               elapsedMs: data.elapsedMs || 0,
@@ -883,6 +1037,7 @@ export const useStore = create<StoreState>()(
       set({
         settings: getDefaultSettings(),
         currentSession: null,
+        plannedSessions: [],
         history: [],
         timerActive: false,
         elapsedMs: 0,

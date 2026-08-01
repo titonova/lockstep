@@ -10,6 +10,7 @@ interface TaskListProps {
   currentTaskIndex: number;
   isSessionActive: boolean;
   elapsedMs?: number;
+  isReadOnly?: boolean;
   onAddTask: (name: string, durationHours: number, notes?: string) => void;
   onUpdateTask: (id: string, updates: Partial<Pick<Task, 'name' | 'durationHours' | 'notes'>>) => void;
   onRemoveTask: (id: string) => void;
@@ -21,6 +22,7 @@ export function TaskList({
   currentTaskIndex,
   elapsedMs = 0,
   isSessionActive,
+  isReadOnly = false,
   onAddTask,
   onUpdateTask,
   onRemoveTask,
@@ -127,7 +129,7 @@ export function TaskList({
             key={task.id}
             task={task}
             index={index}
-            isEditable={!isSessionActive || index > currentTaskIndex}
+            isEditable={!isReadOnly && (!isSessionActive || index > currentTaskIndex)}
             isSessionActive={isSessionActive}
             expectedEndTime={computeExpectedEndTime(index)}
             onUpdate={onUpdateTask}
@@ -141,7 +143,7 @@ export function TaskList({
       </div>
 
       {/* Add task form */}
-      <div className="pt-4 border-t border-white/10">
+      {!isReadOnly && <div className="pt-4 border-t border-white/10">
         {!isAddingTask ? (
           <Button 
             variant="secondary" 
@@ -198,7 +200,7 @@ export function TaskList({
               </div>
             </div>
           )}
-        </div>
+        </div>}
     </div>
   );
 }

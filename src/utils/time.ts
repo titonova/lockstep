@@ -76,7 +76,15 @@ export function formatHours(hours: number): string {
  * Get today's date as ISO string (YYYY-MM-DD)
  */
 export function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0];
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function isFutureDate(date: string): boolean {
+  return date > getTodayDate();
 }
 
 /**

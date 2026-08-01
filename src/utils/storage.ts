@@ -59,6 +59,7 @@ export function loadState(): AppState {
       return {
         settings: { ...getDefaultSettings(), ...parsed.settings },
         currentSession,
+        plannedSessions: parsed.plannedSessions || [],
         history: parsed.history || [],
         pinnedTasks: parsed.pinnedTasks || [],
         timerActive,
@@ -72,6 +73,7 @@ export function loadState(): AppState {
   return {
     settings: getDefaultSettings(),
     currentSession: null,
+    plannedSessions: [],
     history: [],
     pinnedTasks: [],
     timerActive: false,
@@ -108,6 +110,7 @@ export function importData(json: string): AppState | null {
       return {
         settings: { ...getDefaultSettings(), ...data.settings },
         currentSession: data.currentSession || null,
+        plannedSessions: data.plannedSessions || [],
         history: data.history || [],
         pinnedTasks: data.pinnedTasks || [],
         timerActive: data.timerActive || false,
