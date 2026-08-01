@@ -61,6 +61,7 @@ export function MainPage({ onNavigate }: MainPageProps) {
   const [showRestartChoice, setShowRestartChoice] = useState(false);
   const [sessionComplete, setSessionComplete] = useState(false);
   const [showPinnedTasksPanel, setShowPinnedTasksPanel] = useState(false);
+  const [showPlanningControls, setShowPlanningControls] = useState(false);
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
 
   // Reconcile dated plans on load, focus, and while the app remains open.
@@ -277,6 +278,17 @@ export function MainPage({ onNavigate }: MainPageProps) {
               </svg>
             </button>
             <button
+              onClick={() => setShowPlanningControls(prev => !prev)}
+              className={`p-2 hover:bg-white/10 rounded-lg transition-colors ${showPlanningControls ? 'text-white bg-white/10' : 'text-white/60 hover:text-white'}`}
+              aria-label="Show planning date"
+              title="Plan for another day"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <rect x="3" y="4" width="18" height="17" rx="2" strokeWidth={2} />
+                <path strokeLinecap="round" strokeWidth={2} d="M16 2v4M8 2v4M3 10h18" />
+              </svg>
+            </button>
+            <button
               onClick={() => onNavigate('settings')}
               className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
             >
@@ -290,7 +302,7 @@ export function MainPage({ onNavigate }: MainPageProps) {
         </div>
 
         {/* Plan date */}
-        <GlassCard className="space-y-3">
+        {showPlanningControls && <GlassCard className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm text-white/50">Planning day</p>
@@ -320,7 +332,7 @@ export function MainPage({ onNavigate }: MainPageProps) {
           {!isToday && !selectedPlan && (
             <p className="text-sm text-white/40">Add tasks to create a plan for this day.</p>
           )}
-        </GlassCard>
+        </GlassCard>}
 
         {/* Quote */}
         <QuoteDisplay quotes={settings.quotes} enabled={settings.quotesEnabled} />
