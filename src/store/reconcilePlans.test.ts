@@ -38,6 +38,7 @@ vi.mock('../utils/storage', () => ({
 }));
 
 import { useStore } from './index';
+import { getTodayDate } from '../utils/time';
 
 const makeTask = (id: string): Task => ({
   id,
@@ -116,5 +117,22 @@ describe('reconcilePlans', () => {
     expect(useStore.getState().currentSession).toMatchObject({ state: 'running', currentTaskIndex: 0 });
     expect(useStore.getState().currentSession?.tasks[0]).toMatchObject({ status: 'active' });
     expect(useStore.getState().timerActive).toBe(true);
+  });
+
+  it('moves an idle task to another day and updates both plans', () => {
+    const currentSession = makeSession('current-session', '2026-08-15');
+    useStore.setState({ currentSession });
+
+    expect(getTodayDate()).toBe('2026-08-15');
+    expect(useStore.getState().currentSession?.state).toBe('idle');
+    expect(useStore.getState().currentSession?.tasks[0].id).toBe('current-session-task');
+
+    const moved = useStore.getState().moveTaskToDate('2026-08-15', '2026-08-16', 'current-session-task');
+
+    expect(useStore.getState().currentSession?.tasks).toEqual([]);
+    expect(useStore.getState().currentSession?.totalPlannedMs).toBe(0);
+    expect(useStore.getState().plannedSessions).toHaveLength(1);
+    expect(useStore.getState().plannedSessions[0]).toMatchObject({ date: '2026-08-16', tasks: [makeTask('current-session-task')] });
+    expect(moved).toBe(true);
   });
 });

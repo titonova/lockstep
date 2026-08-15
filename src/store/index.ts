@@ -51,7 +51,7 @@ interface StoreState extends AppState {
   updateTaskForDate: (date: string, id: string, updates: Partial<Pick<Task, 'name' | 'durationHours' | 'notes'>>) => void;
   removeTask: (id: string) => void;
   removeTaskForDate: (date: string, id: string) => void;
-  moveTaskToDate: (sourceDate: string, destinationDate: string, id: string) => void;
+  moveTaskToDate: (sourceDate: string, destinationDate: string, id: string) => boolean;
   reorderTasks: (fromIndex: number, toIndex: number) => void;
   reorderTasksForDate: (date: string, fromIndex: number, toIndex: number) => void;
   setPlanAutoStart: (date: string, autoStart: boolean) => void;
@@ -370,7 +370,8 @@ export const useStore = create<StoreState>()(
     },
 
     moveTaskToDate: (sourceDate: string, destinationDate: string, id: string) => {
-      if (sourceDate === destinationDate) return;
+      if (sourceDate === destinationDate) return false;
+      let moved = false;
       set(state => {
         const today = getTodayDate();
         const sourceSession = sourceDate === today
@@ -381,7 +382,7 @@ export const useStore = create<StoreState>()(
           : state.plannedSessions.find(plan => plan.date === destinationDate);
         const task = sourceSession?.tasks.find(item => item.id === id);
 
-        if (!sourceSession || !task || task.status !== 'pending' || sourceSession.state !== 'idle' || destinationSession?.state !== 'idle') {
+        if (!sourceSession || !task || task.status !== 'pending' || sourceSession.state !== 'idle' || (destinationSession && destinationSession.state !== 'idle')) {
           return state;
         }
 
@@ -416,9 +417,11 @@ export const useStore = create<StoreState>()(
         }
 
         const newState = { ...state, currentSession, plannedSessions };
+        moved = true;
         saveState(newState);
         return newState;
       });
+      return moved;
     },
 
     reorderTasks: (fromIndex: number, toIndex: number) => {

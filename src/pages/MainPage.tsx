@@ -16,6 +16,12 @@ interface MainPageProps {
   onNavigate: (page: 'history' | 'settings') => void;
 }
 
+function getNextDate(date: string): string {
+  const [year, month, day] = date.split('-').map(Number);
+  const nextDate = new Date(year, month - 1, day + 1);
+  return `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
+}
+
 export function MainPage({ onNavigate }: MainPageProps) {
   const {
     settings,
@@ -66,6 +72,7 @@ export function MainPage({ onNavigate }: MainPageProps) {
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
   const [movingTask, setMovingTask] = useState<Task | null>(null);
   const [moveDestinationDate, setMoveDestinationDate] = useState('');
+  const [moveError, setMoveError] = useState<string | null>(null);
 
   // Reconcile dated plans on load, focus, and while the app remains open.
   useEffect(() => {
@@ -202,11 +209,16 @@ export function MainPage({ onNavigate }: MainPageProps) {
     const task = tasks.find(item => item.id === id);
     if (!task) return;
     setMovingTask(task);
-    setMoveDestinationDate(selectedDate);
+    setMoveDestinationDate(getNextDate(selectedDate));
+    setMoveError(null);
   };
   const confirmMoveTask = () => {
     if (!movingTask || !moveDestinationDate || moveDestinationDate === selectedDate) return;
-    moveTaskToDate(selectedDate, moveDestinationDate, movingTask.id);
+    const moved = moveTaskToDate(selectedDate, moveDestinationDate, movingTask.id);
+    if (!moved) {
+      setMoveError('This task could not be moved. The source or destination session may have changed.');
+      return;
+    }
     setMovingTask(null);
   };
 
@@ -406,11 +418,15 @@ export function MainPage({ onNavigate }: MainPageProps) {
                 type="date"
                 min={getTodayDate()}
                 value={moveDestinationDate}
-                onChange={(event) => setMoveDestinationDate(event.target.value)}
+                onChange={(event) => {
+                  setMoveDestinationDate(event.target.value);
+                  setMoveError(null);
+                }}
                 className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
               />
+              {moveError && <p className="text-sm text-red-300">{moveError}</p>}
               <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={() => setMovingTask(null)}>Cancel</Button>
+                <Button variant="ghost" onClick={() => { setMovingTask(null); setMoveError(null); }}>Cancel</Button>
                 <Button onClick={confirmMoveTask} disabled={!moveDestinationDate || moveDestinationDate === selectedDate || (moveDestinationDate === getTodayDate() && currentSession?.state !== 'idle')}>Move task</Button>
               </div>
             </GlassCard>
