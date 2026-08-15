@@ -272,7 +272,7 @@ export const useStore = create<StoreState>()(
     },
 
     addTaskForDate: (date: string, name: string, durationHours: number, notes?: string) => {
-      if (date === getTodayDate()) {
+      if (get().currentSession?.date === date) {
         get().addTask(name, durationHours, notes);
         return;
       }
@@ -322,7 +322,7 @@ export const useStore = create<StoreState>()(
     },
 
     updateTaskForDate: (date: string, id: string, updates: Partial<Pick<Task, 'name' | 'durationHours' | 'notes'>>) => {
-      if (date === getTodayDate()) { get().updateTask(id, updates); return; }
+      if (get().currentSession?.date === date) { get().updateTask(id, updates); return; }
       set(state => {
         const plan = state.plannedSessions.find(item => item.date === date);
         const oldTask = plan?.tasks.find(task => task.id === id);
@@ -356,7 +356,7 @@ export const useStore = create<StoreState>()(
     },
 
     removeTaskForDate: (date: string, id: string) => {
-      if (date === getTodayDate()) { get().removeTask(id); return; }
+      if (get().currentSession?.date === date) { get().removeTask(id); return; }
       set(state => {
         const plan = state.plannedSessions.find(item => item.date === date);
         const task = plan?.tasks.find(item => item.id === id);
@@ -373,11 +373,10 @@ export const useStore = create<StoreState>()(
       if (sourceDate === destinationDate) return false;
       let moved = false;
       set(state => {
-        const today = getTodayDate();
-        const sourceSession = sourceDate === today
+        const sourceSession = state.currentSession?.date === sourceDate
           ? state.currentSession
           : state.plannedSessions.find(plan => plan.date === sourceDate);
-        const destinationSession = destinationDate === today
+        const destinationSession = state.currentSession?.date === destinationDate
           ? state.currentSession
           : state.plannedSessions.find(plan => plan.date === destinationDate);
         const task = sourceSession?.tasks.find(item => item.id === id);
@@ -400,7 +399,7 @@ export const useStore = create<StoreState>()(
 
         let currentSession = state.currentSession;
         let plannedSessions = [...state.plannedSessions];
-        if (sourceDate === today) {
+        if (sourceSession.id === state.currentSession?.id) {
           currentSession = updatedSource;
         } else {
           plannedSessions = updatedSource.tasks.length === 0
@@ -408,7 +407,7 @@ export const useStore = create<StoreState>()(
             : plannedSessions.map(plan => plan.id === sourceSession.id ? updatedSource : plan);
         }
 
-        if (destinationDate === today) {
+        if (destinationSession?.id === state.currentSession?.id) {
           currentSession = updatedDestination;
         } else if (destinationSession) {
           plannedSessions = plannedSessions.map(plan => plan.id === destinationSession.id ? updatedDestination : plan);
@@ -450,7 +449,7 @@ export const useStore = create<StoreState>()(
     },
 
     reorderTasksForDate: (date: string, fromIndex: number, toIndex: number) => {
-      if (date === getTodayDate()) { get().reorderTasks(fromIndex, toIndex); return; }
+      if (get().currentSession?.date === date) { get().reorderTasks(fromIndex, toIndex); return; }
       set(state => {
         const plan = state.plannedSessions.find(item => item.date === date);
         if (!plan || fromIndex < 0 || toIndex < 0 || fromIndex >= plan.tasks.length || toIndex >= plan.tasks.length) return state;

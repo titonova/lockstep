@@ -135,4 +135,18 @@ describe('reconcilePlans', () => {
     expect(useStore.getState().plannedSessions[0]).toMatchObject({ date: '2026-08-16', tasks: [makeTask('current-session-task')] });
     expect(moved).toBe(true);
   });
+
+  it('moves a dated plan without modifying an older active session', () => {
+    vi.setSystemTime(new Date('2026-08-16T12:00:00+01:00'));
+    const runningSession = makeSession('running-session', '2026-08-15', 'running');
+    const todayPlan = makeSession('today-plan', '2026-08-16');
+    useStore.setState({ currentSession: runningSession, plannedSessions: [todayPlan] });
+
+    const moved = useStore.getState().moveTaskToDate('2026-08-16', '2026-08-17', 'today-plan-task');
+
+    expect(moved).toBe(true);
+    expect(useStore.getState().currentSession).toEqual(runningSession);
+    expect(useStore.getState().plannedSessions).toHaveLength(1);
+    expect(useStore.getState().plannedSessions[0]).toMatchObject({ date: '2026-08-17', tasks: [makeTask('today-plan-task')] });
+  });
 });

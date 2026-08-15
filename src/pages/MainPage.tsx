@@ -175,34 +175,35 @@ export function MainPage({ onNavigate }: MainPageProps) {
     return isValid;
   };
 
-  const selectedPlan = selectedDate === getTodayDate()
+  const selectedPlan = currentSession?.date === selectedDate
     ? currentSession
     : plannedSessions.find(plan => plan.date === selectedDate) || null;
+  const isViewingCurrentSession = selectedPlan?.id === currentSession?.id;
   const tasks = selectedPlan?.tasks || [];
   const currentTaskIndex = selectedPlan?.currentTaskIndex || 0;
-  const currentTask = tasks[currentTaskIndex];
+  const currentTask = currentSession?.tasks[currentSession.currentTaskIndex];
   const isToday = selectedDate === getTodayDate();
-  const isRunning = isToday && currentSession?.state === 'running';
-  const isPaused = isToday && currentSession?.state === 'paused';
-  const isIdle = isToday && (currentSession?.state === 'idle' || !currentSession);
+  const isRunning = currentSession?.state === 'running';
+  const isPaused = currentSession?.state === 'paused';
+  const isIdle = isToday && isViewingCurrentSession && currentSession?.state === 'idle';
   const isFuturePlan = selectedDate > getTodayDate();
   const isReadOnlyDate = selectedDate < getTodayDate();
   const planAutoStart = selectedPlan?.autoStart || false;
 
   const handleAddTask = (name: string, durationHours: number, notes?: string) => {
-    if (isToday) addTask(name, durationHours, notes);
+    if (isViewingCurrentSession) addTask(name, durationHours, notes);
     else addTaskForDate(selectedDate, name, durationHours, notes);
   };
   const handleUpdateTask = (id: string, updates: Partial<Pick<Task, 'name' | 'durationHours' | 'notes'>>) => {
-    if (isToday) updateTask(id, updates);
+    if (isViewingCurrentSession) updateTask(id, updates);
     else updateTaskForDate(selectedDate, id, updates);
   };
   const handleRemoveTask = (id: string) => {
-    if (isToday) removeTask(id);
+    if (isViewingCurrentSession) removeTask(id);
     else removeTaskForDate(selectedDate, id);
   };
   const handleReorderTasks = (fromIndex: number, toIndex: number) => {
-    if (isToday) reorderTasks(fromIndex, toIndex);
+    if (isViewingCurrentSession) reorderTasks(fromIndex, toIndex);
     else reorderTasksForDate(selectedDate, fromIndex, toIndex);
   };
   const handleMoveTask = (id: string) => {
@@ -396,7 +397,7 @@ export function MainPage({ onNavigate }: MainPageProps) {
           <TaskList
             tasks={tasks}
             currentTaskIndex={currentTaskIndex}
-            isSessionActive={isRunning || isPaused}
+            isSessionActive={isViewingCurrentSession && (isRunning || isPaused)}
             elapsedMs={elapsedMs}
             isReadOnly={isReadOnlyDate}
             onAddTask={handleAddTask}
