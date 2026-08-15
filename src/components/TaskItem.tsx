@@ -14,6 +14,7 @@ interface TaskItemProps {
   expectedEndTime?: number | null;
   onUpdate: (id: string, updates: Partial<Pick<Task, 'name' | 'durationHours' | 'notes'>>) => void;
   onRemove: (id: string) => void;
+  onMove: (id: string) => void;
   onDragStart?: (index: number) => void;
   onDragOver?: (index: number) => void;
   onDragEnd?: () => void;
@@ -28,6 +29,7 @@ export function TaskItem({
   expectedEndTime,
   onUpdate,
   onRemove,
+  onMove,
   onDragStart,
   onDragOver,
   onDragEnd,
@@ -129,6 +131,19 @@ export function TaskItem({
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
                   d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            </button>
+          )}
+
+          {isEditable && task.status === 'pending' && !isSessionActive && (
+            <button
+              onClick={() => onMove(task.id)}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/40 hover:text-white"
+              aria-label="Move task to another day"
+              title="Move task to another day"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3m10-8l-4 4m0 0l4 4M9 12h12" />
               </svg>
             </button>
           )}

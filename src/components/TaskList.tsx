@@ -14,6 +14,7 @@ interface TaskListProps {
   onAddTask: (name: string, durationHours: number, notes?: string) => void;
   onUpdateTask: (id: string, updates: Partial<Pick<Task, 'name' | 'durationHours' | 'notes'>>) => void;
   onRemoveTask: (id: string) => void;
+  onMoveTask: (id: string) => void;
   onReorderTasks: (fromIndex: number, toIndex: number) => void;
 }
 
@@ -26,6 +27,7 @@ export function TaskList({
   onAddTask,
   onUpdateTask,
   onRemoveTask,
+  onMoveTask,
   onReorderTasks
 }: TaskListProps) {
   const [newTaskName, setNewTaskName] = useState('');
@@ -134,6 +136,7 @@ export function TaskList({
             expectedEndTime={computeExpectedEndTime(index)}
             onUpdate={onUpdateTask}
             onRemove={onRemoveTask}
+            onMove={onMoveTask}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}

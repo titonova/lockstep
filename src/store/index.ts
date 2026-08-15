@@ -51,6 +51,7 @@ interface StoreState extends AppState {
   updateTaskForDate: (date: string, id: string, updates: Partial<Pick<Task, 'name' | 'durationHours' | 'notes'>>) => void;
   removeTask: (id: string) => void;
   removeTaskForDate: (date: string, id: string) => void;
+  moveTaskToDate: (sourceDate: string, destinationDate: string, id: string) => void;
   reorderTasks: (fromIndex: number, toIndex: number) => void;
   reorderTasksForDate: (date: string, fromIndex: number, toIndex: number) => void;
   setPlanAutoStart: (date: string, autoStart: boolean) => void;
@@ -363,6 +364,58 @@ export const useStore = create<StoreState>()(
         const newPlan = { ...plan, tasks: plan.tasks.filter(item => item.id !== id), totalPlannedMs: plan.totalPlannedMs - hoursToMs(task.durationHours) };
         const plannedSessions = newPlan.tasks.length === 0 ? state.plannedSessions.filter(item => item.id !== plan.id) : state.plannedSessions.map(item => item.id === plan.id ? newPlan : item);
         const newState = { ...state, plannedSessions };
+        saveState(newState);
+        return newState;
+      });
+    },
+
+    moveTaskToDate: (sourceDate: string, destinationDate: string, id: string) => {
+      if (sourceDate === destinationDate) return;
+      set(state => {
+        const today = getTodayDate();
+        const sourceSession = sourceDate === today
+          ? state.currentSession
+          : state.plannedSessions.find(plan => plan.date === sourceDate);
+        const destinationSession = destinationDate === today
+          ? state.currentSession
+          : state.plannedSessions.find(plan => plan.date === destinationDate);
+        const task = sourceSession?.tasks.find(item => item.id === id);
+
+        if (!sourceSession || !task || task.status !== 'pending' || sourceSession.state !== 'idle' || destinationSession?.state !== 'idle') {
+          return state;
+        }
+
+        const updatedSource = {
+          ...sourceSession,
+          tasks: sourceSession.tasks.filter(item => item.id !== id),
+          totalPlannedMs: sourceSession.totalPlannedMs - hoursToMs(task.durationHours)
+        };
+        const targetSession = destinationSession || createEmptySession(destinationDate);
+        const updatedDestination = {
+          ...targetSession,
+          tasks: [...targetSession.tasks, task],
+          totalPlannedMs: targetSession.totalPlannedMs + hoursToMs(task.durationHours)
+        };
+
+        let currentSession = state.currentSession;
+        let plannedSessions = [...state.plannedSessions];
+        if (sourceDate === today) {
+          currentSession = updatedSource;
+        } else {
+          plannedSessions = updatedSource.tasks.length === 0
+            ? plannedSessions.filter(plan => plan.id !== sourceSession.id)
+            : plannedSessions.map(plan => plan.id === sourceSession.id ? updatedSource : plan);
+        }
+
+        if (destinationDate === today) {
+          currentSession = updatedDestination;
+        } else if (destinationSession) {
+          plannedSessions = plannedSessions.map(plan => plan.id === destinationSession.id ? updatedDestination : plan);
+        } else {
+          plannedSessions = [...plannedSessions, updatedDestination];
+        }
+
+        const newState = { ...state, currentSession, plannedSessions };
         saveState(newState);
         return newState;
       });
