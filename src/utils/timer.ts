@@ -54,6 +54,24 @@ export interface ReconciledSession {
   sessionComplete: boolean;
 }
 
+function resolveActiveTaskStart(session: Session, tasks: Task[], currentIndex: number, now: number): { startedAt: number; repaired: boolean } {
+  const current = tasks[currentIndex];
+  const recordedStart = current.startedAt ?? current.scheduledStartAt;
+
+  if (recordedStart !== undefined && recordedStart <= now) {
+    return { startedAt: recordedStart, repaired: false };
+  }
+
+  // A task which is already active cannot start in the future. Legacy builds
+  // could leave a task's old projected timestamp attached after reordering it.
+  const previousCompletion = currentIndex > 0 ? tasks[currentIndex - 1].completedAt : undefined;
+  const recoveredStart = previousCompletion !== undefined && previousCompletion <= now
+    ? previousCompletion
+    : Math.min(session.startedAt ?? now, now);
+
+  return { startedAt: recoveredStart, repaired: recordedStart !== undefined };
+}
+
 /**
  * Derive and persist only genuine state transitions caused by real elapsed time.
  * This works equally after a one-second repaint or after a browser suspension.
@@ -84,7 +102,9 @@ export function reconcileSessionTimer(session: Session, now: number): Reconciled
 
   while (currentIndex < tasks.length) {
     const current = tasks[currentIndex];
-    const startedAt = current.startedAt ?? current.scheduledStartAt ?? now;
+    const resolvedStart = resolveActiveTaskStart(workingSession, tasks, currentIndex, now);
+    const startedAt = resolvedStart.startedAt;
+    stateChanged ||= resolvedStart.repaired;
     const deadline = taskDeadline(current, workingSession, startedAt, now);
 
     if (now < deadline) {

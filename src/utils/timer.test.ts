@@ -69,4 +69,19 @@ describe('reconcileSessionTimer', () => {
     expect(result.stateChanged).toBe(true);
     expect(result.session.pauseEvents[0].resumedAt).toBe(start + 5 * 60_000);
   });
+
+  it('repairs an active task carrying a legacy start time in the future', () => {
+    const start = 1_000_000;
+    const first = { ...task('one'), status: 'completed' as const, startedAt: start, completedAt: start + hour, timeSpentMs: hour };
+    const second = { ...task('two'), status: 'active' as const, startedAt: start + 22.5 * hour, scheduledStartAt: start + 22.5 * hour };
+    const session = runningSession(start, [first, second]);
+    session.tasks = [first, second];
+    session.currentTaskIndex = 1;
+
+    const result = reconcileSessionTimer(session, start + hour + 15 * 60_000);
+
+    expect(result.session.tasks[1].startedAt).toBe(start + hour);
+    expect(result.elapsedMs).toBe(15 * 60_000);
+    expect(result.stateChanged).toBe(true);
+  });
 });
