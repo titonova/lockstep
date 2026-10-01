@@ -57,4 +57,16 @@ describe('reconcileSessionTimer', () => {
     expect(result.sessionComplete).toBe(false);
     expect(result.elapsedMs).toBe(30 * 60_000);
   });
+
+  it('repairs an orphaned open pause in a session already marked running', () => {
+    const start = 1_000_000;
+    const result = reconcileSessionTimer(
+      runningSession(start, [task('one')], [{ id: 'orphan', pausedAt: start + 5 * 60_000 }]),
+      start + 15 * 60_000
+    );
+
+    expect(result.elapsedMs).toBe(15 * 60_000);
+    expect(result.stateChanged).toBe(true);
+    expect(result.session.pauseEvents[0].resumedAt).toBe(start + 5 * 60_000);
+  });
 });

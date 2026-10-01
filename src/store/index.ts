@@ -813,7 +813,7 @@ export const useStore = create<StoreState>()(
         // Persist real task transitions and seconds for reload recovery.
         const currentSeconds = Math.floor(state.elapsedMs / 1000);
         const newSeconds = Math.floor(reconciled.elapsedMs / 1000);
-        if (reconciled.completedAny || currentSeconds !== newSeconds) {
+        if (reconciled.stateChanged || currentSeconds !== newSeconds) {
           saveState(newState);
         }
 

@@ -50,7 +50,7 @@ export function taskDeadline(task: Task, session: Session, startedAt: number, no
 export interface ReconciledSession {
   session: Session;
   elapsedMs: number;
-  completedAny: boolean;
+  stateChanged: boolean;
   sessionComplete: boolean;
 }
 
@@ -61,17 +61,31 @@ export interface ReconciledSession {
 export function reconcileSessionTimer(session: Session, now: number): ReconciledSession {
   if (session.state !== 'running') {
     const current = session.tasks[session.currentTaskIndex];
-    return { session, elapsedMs: current ? elapsedWorkingTime(current, session, now) : 0, completedAny: false, sessionComplete: false };
+    return { session, elapsedMs: current ? elapsedWorkingTime(current, session, now) : 0, stateChanged: false, sessionComplete: false };
   }
 
-  const tasks = [...session.tasks];
+  // Older builds could persist a session as running while leaving its last
+  // pause open. That makes every new second count as paused and freezes elapsed
+  // time at zero forever. A running session is authoritative, so close those
+  // orphaned records as zero-duration compatibility events.
+  const hasOrphanedPause = session.pauseEvents.some(pause => pause.resumedAt === undefined);
+  const workingSession: Session = hasOrphanedPause
+    ? {
+        ...session,
+        pauseEvents: session.pauseEvents.map(pause => pause.resumedAt === undefined
+          ? { ...pause, resumedAt: pause.pausedAt }
+          : pause)
+      }
+    : session;
+
+  const tasks = [...workingSession.tasks];
   let currentIndex = session.currentTaskIndex;
-  let completedAny = false;
+  let stateChanged = hasOrphanedPause;
 
   while (currentIndex < tasks.length) {
     const current = tasks[currentIndex];
     const startedAt = current.startedAt ?? current.scheduledStartAt ?? now;
-    const deadline = taskDeadline(current, session, startedAt, now);
+    const deadline = taskDeadline(current, workingSession, startedAt, now);
 
     if (now < deadline) {
       tasks[currentIndex] = {
@@ -81,11 +95,11 @@ export function reconcileSessionTimer(session: Session, now: number): Reconciled
         // Retain this legacy field only for backwards-compatible imports.
         scheduledStartAt: startedAt
       };
-      const reconciled = { ...session, tasks, currentTaskIndex: currentIndex };
+      const reconciled = { ...workingSession, tasks, currentTaskIndex: currentIndex };
       return {
         session: reconciled,
         elapsedMs: elapsedWorkingTime(tasks[currentIndex], reconciled, now),
-        completedAny,
+        stateChanged,
         sessionComplete: false
       };
     }
@@ -99,7 +113,7 @@ export function reconcileSessionTimer(session: Session, now: number): Reconciled
       timeSpentMs: duration,
       completedEarly: false
     };
-    completedAny = true;
+    stateChanged = true;
     currentIndex += 1;
 
     if (currentIndex < tasks.length) {
@@ -113,9 +127,9 @@ export function reconcileSessionTimer(session: Session, now: number): Reconciled
   }
 
   return {
-    session: { ...session, tasks, currentTaskIndex: currentIndex, state: 'completed', completedAt: now },
+    session: { ...workingSession, tasks, currentTaskIndex: currentIndex, state: 'completed', completedAt: now },
     elapsedMs: 0,
-    completedAny,
+    stateChanged,
     sessionComplete: true
   };
 }
