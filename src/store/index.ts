@@ -803,6 +803,9 @@ export const useStore = create<StoreState>()(
         const newState = {
           ...state,
           currentSession: reconciled.session,
+          // Heal sessions saved by older builds where this flag drifted out of
+          // sync with the authoritative session state.
+          timerActive: true,
           elapsedMs: reconciled.elapsedMs,
           lastTickTime: now
         };

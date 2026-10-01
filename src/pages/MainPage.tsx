@@ -28,7 +28,6 @@ export function MainPage({ onNavigate }: MainPageProps) {
     currentSession,
     plannedSessions,
     pinnedTasks,
-    timerActive,
     elapsedMs,
     createSession,
     addTask,
@@ -94,9 +93,12 @@ export function MainPage({ onNavigate }: MainPageProps) {
     }
   }, [currentSession, plannedSessions, createSession, selectedDate]);
 
-  // Timer tick
+  const isSessionRunning = currentSession?.state === 'running';
+
+  // Timer ticks are repaint requests only. Session state—not the legacy
+  // timerActive flag—determines whether a running session is reconciled.
   useEffect(() => {
-    if (!timerActive) return;
+    if (!isSessionRunning) return;
 
     // The interval is only a repaint request. Every tick derives time from Date.now(),
     // so a backgrounded browser cannot make the clock drift or freeze.
@@ -119,7 +121,7 @@ export function MainPage({ onNavigate }: MainPageProps) {
       window.removeEventListener('pageshow', reconcileNow);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [timerActive, tick]);
+  }, [isSessionRunning, tick]);
 
   // Check for session completion
   useEffect(() => {
@@ -198,7 +200,7 @@ export function MainPage({ onNavigate }: MainPageProps) {
   const currentTaskIndex = selectedPlan?.currentTaskIndex || 0;
   const currentTask = currentSession?.tasks[currentSession.currentTaskIndex];
   const isToday = selectedDate === getTodayDate();
-  const isRunning = currentSession?.state === 'running';
+  const isRunning = isSessionRunning;
   const isPaused = currentSession?.state === 'paused';
   const isIdle = isToday && isViewingCurrentSession && currentSession?.state === 'idle';
   const isFuturePlan = selectedDate > getTodayDate();
