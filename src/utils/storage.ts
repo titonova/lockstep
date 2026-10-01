@@ -1,6 +1,6 @@
 import { AppState, DailySummary, Session, Settings } from '../types';
 import { DEFAULT_QUOTES } from '../data/quotes';
-import { calculateScheduledTimes, getEffectiveStartTime } from './scheduling';
+import { elapsedWorkingTime } from './timer';
 
 const STORAGE_KEY = 'lockstep_data';
 
@@ -34,26 +34,13 @@ export function loadState(): AppState {
       let elapsedMs = parsed.elapsedMs || 0;
       let lastTickTime = parsed.lastTickTime || null;
 
-      // Backward compatibility: calculate scheduled times if missing and session is active
+      // A running session is resumed from wall-clock facts, never from a saved tick.
       if (currentSession && currentSession.state === 'running') {
-        const hasScheduledTimes = currentSession.tasks.some((t: any) => t.scheduledCompleteAt);
-        
-        if (!hasScheduledTimes) {
-          // Calculate scheduled times for backward compatibility
-          const effectiveStartTime = getEffectiveStartTime(currentSession);
-          currentSession = calculateScheduledTimes(currentSession, effectiveStartTime, currentSession.currentTaskIndex);
-        }
-
-        // Resume timer state for running sessions
         const now = Date.now();
         const currentTask = currentSession.tasks[currentSession.currentTaskIndex];
-        
-        if (currentTask && currentTask.scheduledStartAt) {
-          // Recalculate elapsed time from scheduled start
-          elapsedMs = Math.max(0, now - currentTask.scheduledStartAt);
-          timerActive = true;
-          lastTickTime = now;
-        }
+        elapsedMs = currentTask ? elapsedWorkingTime(currentTask, currentSession, now) : 0;
+        timerActive = true;
+        lastTickTime = now;
       }
 
       return {
